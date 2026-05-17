@@ -1,5 +1,6 @@
-import {App, ItemView, WorkspaceLeaf} from "obsidian";
+import {App, FileView, MarkdownView, TFile, ViewStateResult} from "obsidian";
 import type {IndexEntry} from "./types";
+import {readFeishuFrontMatter} from "./feishu-frontmatter";
 
 export const FEISHU_VIEW_TYPE = "feishu-doc-view";
 
@@ -24,9 +25,12 @@ const HIDE_HEADER_CSS = `
 }
 `;
 
-export class FeishuDocView extends ItemView {
+export class FeishuDocView extends FileView {
 	private currentUrl: string | undefined;
 	private currentTitle: string | undefined;
+	private currentZoom = 1.0;
+	private currentCustomCss = "";
+	private currentHideHeader = true;
 	private webviewEl: WebviewLike | undefined;
 	private zoomLevel = 1.0;
 	private cssKey: string | undefined;
@@ -46,25 +50,82 @@ export class FeishuDocView extends ItemView {
 	async onOpen(): Promise<void> {
 		this.contentEl.empty();
 		this.contentEl.addClass("feishu-doc-view");
-		this.renderEmptyState();
+
+		// FileView sets this.file before onOpen runs; load it now.
+		if (this.file) {
+			await this.loadFile(this.file);
+		} else {
+			this.renderEmptyState();
+		}
 	}
 
 	async onClose(): Promise<void> {
 		this.contentEl.empty();
 	}
 
+	/**
+	 * Called by Obsidian when a file is loaded into this FileView.
+	 */
+	async onLoadFile(file: TFile): Promise<void> {
+		await this.loadFile(file);
+	}
+
+	private async loadFile(file: TFile): Promise<void> {
+		const fm = await readFeishuFrontMatter(this.app, file);
+		const url = fm?.feishu_url;
+		if (url) {
+			this.currentTitle = fm.feishu_title || file.basename;
+			await this.loadUrl(url, this.currentTitle);
+		} else {
+			this.renderEmptyState();
+		}
+	}
+
 	async loadEntry(entry: IndexEntry, options?: FrameOptions): Promise<void> {
-		this.currentUrl = entry.feishu_url;
-		this.currentTitle = entry.feishu_title ?? entry.feishu_doc_id;
-		this.zoomLevel = options?.zoom ?? 1.0;
-		this.renderWebview(options);
+		await this.loadUrl(entry.feishu_url, entry.feishu_title ?? entry.feishu_doc_id, options);
 	}
 
 	async loadUrl(url: string, title?: string, options?: FrameOptions): Promise<void> {
 		this.currentUrl = url;
 		this.currentTitle = title ?? "Feishu Document";
-		this.zoomLevel = options?.zoom ?? 1.0;
+		this.currentZoom = options?.zoom ?? 1.0;
+		this.currentCustomCss = options?.customCss ?? "";
+		this.currentHideHeader = options?.hideHeader ?? true;
+		this.zoomLevel = this.currentZoom;
 		this.renderWebview(options);
+	}
+
+	getState(): Record<string, unknown> {
+		return Object.assign(super.getState(), {
+			url: this.currentUrl,
+			title: this.currentTitle,
+			zoom: this.currentZoom,
+			customCss: this.currentCustomCss,
+			hideHeader: this.currentHideHeader,
+		});
+	}
+
+	async setState(state: Record<string, unknown>, result: ViewStateResult): Promise<void> {
+		if (typeof state.file === "string") {
+			await super.setState(state, result);
+			return;
+		}
+
+		const url = state.url as string | undefined;
+		const title = state.title as string | undefined;
+		const zoom = state.zoom as number | undefined;
+		const customCss = state.customCss as string | undefined;
+		const hideHeader = state.hideHeader as boolean | undefined;
+
+		if (url) {
+			await this.loadUrl(url, title, {
+				zoom,
+				customCss,
+				hideHeader,
+			});
+		} else {
+			await super.setState(state, result);
+		}
 	}
 
 	clear(): void {
@@ -119,18 +180,14 @@ export class FeishuDocView extends ItemView {
 		}
 		this.contentEl.empty();
 
-		// Create a zoom container
 		const zoomContainer = this.contentEl.createDiv({cls: "feishu-doc-zoom-container"});
-		zoomContainer.style.width = "100%";
-		zoomContainer.style.height = "100%";
-		zoomContainer.style.overflow = "auto";
 
 		// Use webview on desktop, iframe as fallback
 		const useWebview = this.isWebviewAvailable();
 		let el: HTMLElement;
 
 		if (useWebview) {
-			el = document.createElement("webview") as HTMLElement;
+			el = document.createElement("webview");
 			el.addClass("feishu-doc-webview");
 			zoomContainer.appendChild(el);
 			el.setAttribute("partition", "persist:feishu-vault");
@@ -145,10 +202,6 @@ export class FeishuDocView extends ItemView {
 			(el as HTMLIFrameElement).setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups");
 		}
 
-		el.style.width = "100%";
-		el.style.height = "100%";
-		el.style.border = "none";
-
 		this.applyZoom();
 
 		if (useWebview && this.webviewEl) {
@@ -161,10 +214,9 @@ export class FeishuDocView extends ItemView {
 	private applyZoom(): void {
 		if (this.zoomLevel === 1.0) return;
 		// Apply zoom via CSS on the container, not the webview itself
-		const container = this.contentEl.querySelector(".feishu-doc-zoom-container") as HTMLElement | null;
+		const container = this.contentEl.querySelector<HTMLElement>(".feishu-doc-zoom-container");
 		if (container) {
 			container.style.transform = `scale(${this.zoomLevel})`;
-			container.style.transformOrigin = "0 0";
 			container.style.width = `${100 / this.zoomLevel}%`;
 			container.style.height = `${100 / this.zoomLevel}%`;
 		}
@@ -187,18 +239,50 @@ export async function openFeishuView(
 	entry: IndexEntry,
 	options?: FrameOptions
 ): Promise<void> {
+	const state = {
+		url: entry.feishu_url,
+		title: entry.feishu_title,
+		zoom: options?.zoom,
+		customCss: options?.customCss,
+		hideHeader: options?.hideHeader,
+	};
+
+	// 1. Active leaf is a markdown view (most common: user clicked a file)
+	// Check view state type first — available before view instance is ready
+	const activeLeaf = app.workspace.getMostRecentLeaf();
+	if (activeLeaf && activeLeaf.getViewState().type === "markdown") {
+		await activeLeaf.setViewState({type: FEISHU_VIEW_TYPE, state});
+		return;
+	}
+
+	// 2. Already in FeishuDocView (switching between Feishu docs)
+	const activeFeishu = app.workspace.getActiveViewOfType(FeishuDocView);
+	if (activeFeishu?.leaf) {
+		await activeFeishu.leaf.setViewState({type: FEISHU_VIEW_TYPE, state});
+		return;
+	}
+
+	// 3. Fallback: search all markdown leaves for matching file
+	for (const leaf of app.workspace.getLeavesOfType("markdown")) {
+		const view = leaf.view as MarkdownView;
+		if (view.file?.path === entry.path) {
+			await leaf.setViewState({type: FEISHU_VIEW_TYPE, state});
+			return;
+		}
+	}
+
+	// 4. Reuse existing FeishuDocView leaf elsewhere
 	const leaves = app.workspace.getLeavesOfType(FEISHU_VIEW_TYPE);
 	if (leaves.length > 0) {
 		const leaf = leaves[0]!;
-		const view = leaf.view as FeishuDocView;
-		await view.loadEntry(entry, options);
+		await leaf.setViewState({type: FEISHU_VIEW_TYPE, state});
 		await app.workspace.revealLeaf(leaf);
-	} else {
-		const leaf = app.workspace.getRightLeaf(false);
-		if (!leaf) return;
-		await leaf.setViewState({type: FEISHU_VIEW_TYPE, active: true});
-		const view = leaf.view as FeishuDocView;
-		await view.loadEntry(entry, options);
-		await app.workspace.revealLeaf(leaf);
+		return;
 	}
+
+	// 5. Fallback: right sidebar
+	const leaf = app.workspace.getRightLeaf(false);
+	if (!leaf) return;
+	await leaf.setViewState({type: FEISHU_VIEW_TYPE, active: true, state});
+	await app.workspace.revealLeaf(leaf);
 }

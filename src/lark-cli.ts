@@ -1,4 +1,3 @@
-import {Notice} from "obsidian";
 import {spawn} from "child_process";
 import type {FeishuDocInfo} from "./types";
 import {getEffectiveLarkCliPath, resolveUserShellPath} from "./lark-cli-resolver";
@@ -25,12 +24,12 @@ function runCommand(
 		let stdout = "";
 		let stderr = "";
 
-		proc.stdout.on("data", (data) => {
-			stdout += data.toString();
+		proc.stdout.on("data", (data: unknown) => {
+			stdout += String(data);
 		});
 
-		proc.stderr.on("data", (data) => {
-			stderr += data.toString();
+		proc.stderr.on("data", (data: unknown) => {
+			stderr += String(data);
 		});
 
 		proc.on("error", (err) => {
@@ -48,51 +47,27 @@ function runCommand(
 }
 
 /**
- * Create a new Feishu document via Lark CLI.
+ * Create a new Feishu wiki node via Lark CLI.
+ * Creates in the user's personal wiki library by default.
  */
 export async function createFeishuDocument(
 	cliPath: string,
 	title: string,
-	content?: string
+	tenantDomain: string,
+	_content?: string
 ): Promise<FeishuDocInfo> {
 	const resolvedPath = getEffectiveLarkCliPath(cliPath);
-	const xmlContent = content
-		? `<title>${escapeXml(title)}</title><p>${escapeXml(content)}</p>`
-		: `<title>${escapeXml(title)}</title>`;
 
 	const args = [
-		"docs", "+create",
-		"--api-version", "v2",
-		"--content", xmlContent,
+		"wiki", "+node-create",
+		"--as", "user",
+		"--title", title,
 	];
 
 	const {stdout} = await runCommand(resolvedPath, args);
 
-	// Try to find JSON output from lark-cli
-	const lines = stdout.split("\n").map(l => l.trim()).filter(Boolean);
-	let parsed: Record<string, unknown> | undefined;
-
-	for (const line of lines) {
-		if (line.startsWith("{")) {
-			try {
-				parsed = JSON.parse(line) as Record<string, unknown>;
-				break;
-			} catch {
-				// not valid JSON, continue
-			}
-		}
-	}
-
+	const parsed = parseCliJson(stdout);
 	if (!parsed) {
-		// Fallback: try to extract URL from any line
-		const urlMatch = stdout.match(/https:\/\/[^\s]+/);
-		if (urlMatch) {
-			const url = urlMatch[0];
-			const docId = extractDocIdFromUrl(url);
-			if (docId) {
-				return {docId, url, title};
-			}
-		}
 		throw new LarkCliError("Could not parse Lark CLI output. Raw stdout:\n" + stdout);
 	}
 
@@ -100,48 +75,65 @@ export async function createFeishuDocument(
 		throw new LarkCliError(String((parsed.error as Record<string, string>).message || JSON.stringify(parsed.error)));
 	}
 
-	const docToken = extractString(parsed, ["document.document_id", "document.open_url", "url", "token", "doc_token"]);
-	const url = extractString(parsed, ["document.open_url", "url"]) || "";
-	const resolvedTitle = extractString(parsed, ["document.title", "title"]) || title;
+	const nodeToken = extractString(parsed, ["data.node_token", "node_token"]);
+	const resolvedTitle = extractString(parsed, ["data.title", "title"]) || title;
+	const returnedUrl = extractString(parsed, ["data.url", "url"]);
 
-	if (!docToken) {
-		throw new LarkCliError("Failed to extract document token from Lark CLI output: " + stdout);
+	if (!nodeToken) {
+		throw new LarkCliError("Failed to extract node_token from Lark CLI output: " + stdout);
 	}
 
-	return {docId: docToken, url, title: resolvedTitle};
+	const url = returnedUrl || `https://${tenantDomain}/wiki/${nodeToken}`;
+	return {docId: nodeToken, url, title: resolvedTitle};
 }
 
 /**
  * Fetch the current title of a Feishu document.
+ *
+ * Supports both wiki node tokens (via wiki spaces get_node) and
+ * legacy docx tokens (via docs +fetch).
  */
 export async function fetchFeishuDocumentTitle(
 	cliPath: string,
 	docToken: string
 ): Promise<string> {
 	const resolvedPath = getEffectiveLarkCliPath(cliPath);
-	const args = [
+
+	// First, try wiki spaces get_node (for wiki node tokens)
+	const wikiArgs = [
+		"wiki", "spaces", "get_node",
+		"--params", JSON.stringify({token: docToken}),
+		"--format", "json",
+	];
+
+	try {
+		const {stdout: wikiStdout} = await runCommand(resolvedPath, wikiArgs);
+		const parsed = parseCliJson(wikiStdout);
+		if (parsed && !parsed.error) {
+			const title = extractString(parsed, ["data.node.title", "node.title", "title"]);
+			if (title) return title;
+		}
+	} catch {
+		// Wiki lookup failed — fall through to docs fetch
+	}
+
+	// Fallback: docs +fetch (for legacy docx tokens)
+	const docArgs = [
 		"docs", "+fetch",
 		"--api-version", "v2",
 		"--doc", docToken,
 	];
 
-	const {stdout} = await runCommand(resolvedPath, args);
+	const {stdout} = await runCommand(resolvedPath, docArgs);
 
 	// Try JSON first
-	const lines = stdout.split("\n").map(l => l.trim()).filter(Boolean);
-	for (const line of lines) {
-		if (line.startsWith("{")) {
-			try {
-				const parsed = JSON.parse(line) as Record<string, unknown>;
-				if (parsed.error) {
-					throw new LarkCliError(String((parsed.error as Record<string, string>).message || JSON.stringify(parsed.error)));
-				}
-				const title = extractString(parsed, ["document.title", "title"]);
-				if (title) return title;
-			} catch {
-				// continue
-			}
+	const parsed = parseCliJson(stdout);
+	if (parsed) {
+		if (parsed.error) {
+			throw new LarkCliError(String((parsed.error as Record<string, string>).message || JSON.stringify(parsed.error)));
 		}
+		const title = extractString(parsed, ["document.title", "title"]);
+		if (title) return title;
 	}
 
 	// Fallback: try to extract <title> from XML output
@@ -151,6 +143,37 @@ export async function fetchFeishuDocumentTitle(
 	}
 
 	return "";
+}
+
+/**
+ * Parse JSON from CLI stdout.
+ * Handles both compact single-line JSON and pretty-printed multi-line JSON.
+ */
+function parseCliJson(stdout: string): Record<string, unknown> | undefined {
+	const trimmed = stdout.trim();
+
+	// Try the entire stdout first (handles multi-line formatted JSON)
+	if (trimmed.startsWith("{")) {
+		try {
+			return JSON.parse(trimmed) as Record<string, unknown>;
+		} catch {
+			// not valid as a whole, try line-by-line
+		}
+	}
+
+	// Fallback: scan line-by-line for JSON objects (handles mixed output)
+	const lines = trimmed.split("\n").map(l => l.trim()).filter(Boolean);
+	for (const line of lines) {
+		if (line.startsWith("{")) {
+			try {
+				return JSON.parse(line) as Record<string, unknown>;
+			} catch {
+				// continue
+			}
+		}
+	}
+
+	return undefined;
 }
 
 function extractString(obj: Record<string, unknown>, paths: string[]): string | undefined {
@@ -170,18 +193,4 @@ function extractString(obj: Record<string, unknown>, paths: string[]): string | 
 		}
 	}
 	return undefined;
-}
-
-function extractDocIdFromUrl(url: string): string | undefined {
-	const match = url.match(/(?:docs|docx|wiki)\/([a-zA-Z0-9]+)/);
-	return match?.[1];
-}
-
-function escapeXml(str: string): string {
-	return str
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&apos;");
 }

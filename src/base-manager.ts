@@ -1,8 +1,8 @@
-import {App, normalizePath} from "obsidian";
+import {App, normalizePath, TFile} from "obsidian";
 
-const BASE_FILE_NAME = "Feishu Documents.base";
+export const BASE_FILE_NAME = "Feishu Documents.base";
 
-const BASE_CONTENT = `filters: 'feishu_doc_id != ""'
+const BASE_CONTENT = `filters: 'feishu_doc_id'
 
 properties:
   feishu_title:
@@ -26,9 +26,18 @@ views:
 export async function ensureBaseFile(app: App): Promise<void> {
 	const path = normalizePath(BASE_FILE_NAME);
 	const existing = app.vault.getAbstractFileByPath(path);
-	if (existing) {
+
+	if (existing instanceof TFile) {
+		// Update existing file if the filters line has changed
+		const current = await app.vault.read(existing);
+		const currentFilterLine = current.split("\n")[0]?.trim();
+		const newFilterLine = BASE_CONTENT.split("\n")[0]?.trim();
+		if (currentFilterLine !== newFilterLine) {
+			await app.vault.modify(existing, BASE_CONTENT);
+		}
 		return;
 	}
+
 	try {
 		await app.vault.create(path, BASE_CONTENT);
 	} catch (err) {

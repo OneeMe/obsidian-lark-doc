@@ -1,4 +1,4 @@
-import {App, Modal, Notice, Setting, TFile, normalizePath} from "obsidian";
+import {App, Modal, Notice, TFile, normalizePath} from "obsidian";
 import type ObsidianFeishuPlugin from "./main";
 import {createFeishuDocument} from "./lark-cli";
 
@@ -17,19 +17,21 @@ export class CreateFeishuDocModal extends Modal {
 	onOpen(): void {
 		const {contentEl} = this;
 		contentEl.empty();
-		contentEl.createEl("h2", {text: "Create Feishu Document"});
+		contentEl.createEl("h2", {text: "Create Feishu document"});
 
 		const titleWrap = contentEl.createDiv();
 		titleWrap.createEl("label", {text: "Document title"});
-		this.titleInput = titleWrap.createEl("input", {type: "text"});
-		this.titleInput.style.width = "100%";
-		this.titleInput.placeholder = "My Document";
+		this.titleInput = titleWrap.createEl("input", {
+			cls: "feishu-modal-input",
+			type: "text",
+		});
+		this.titleInput.placeholder = "My document";
 
 		const contentWrap = contentEl.createDiv();
 		contentWrap.createEl("label", {text: "Initial content (optional)"});
-		this.contentInput = contentWrap.createEl("textarea");
-		this.contentInput.style.width = "100%";
-		this.contentInput.style.minHeight = "80px";
+		this.contentInput = contentWrap.createEl("textarea", {
+			cls: "feishu-modal-textarea",
+		});
 		this.contentInput.placeholder = "Optional content...";
 
 		const btnContainer = contentEl.createDiv({cls: "modal-button-container"});
@@ -66,15 +68,14 @@ export class CreateFeishuDocModal extends Modal {
 			const docInfo = await createFeishuDocument(
 				this.plugin.settings.larkCliPath,
 				title,
+				this.plugin.settings.feishuTenantDomain,
 				content || undefined
 			);
 
-			const note = await this.createObsidianNote(docInfo.title, docInfo.docId, docInfo.url);
+			const note = await this.createLarkNote(docInfo.title, docInfo.docId, docInfo.url);
 			if (note) {
+				// .lark files open directly in FeishuDocView via registerExtensions
 				await this.app.workspace.getLeaf().openFile(note);
-				if (this.plugin.settings.autoOpenFeishuView) {
-					await this.plugin.openFeishuForFile(note);
-				}
 			}
 
 			new Notice(`Created Feishu document: ${docInfo.title}`);
@@ -102,7 +103,7 @@ export class CreateFeishuDocModal extends Modal {
 		}
 	}
 
-	private async createObsidianNote(
+	private async createLarkNote(
 		title: string,
 		docId: string,
 		url: string
@@ -136,22 +137,23 @@ export class CreateFeishuDocModal extends Modal {
 		].join("\n");
 
 		const shadowNotice = [
-			"> **Shadow File** — This note is a local proxy for a Feishu (Lark) document.",
+			"> **Shadow File** — This note is a local proxy for a Feishu (Lark) wiki document.",
 			">",
-			"> **Remote source:** Use `lark-cli` to fetch the live content of this document.",
+			`> **Wiki URL:** ${url}`,
 			">",
+			"> **Node info (via lark-cli):**",
 			"> ```bash",
-			`> lark-cli docs +fetch --api-version v2 --doc ${docId}`,
+			`> lark-cli wiki spaces get_node --params '{"token":"${docId}"}' --format json`,
 			"> ```",
 			">",
-			"> This file contains only front matter metadata. The full content resides in Feishu and can be retrieved on-demand via the Lark CLI or associated Lark skills.",
+			"> This file contains only front matter metadata. The full content resides in Feishu and can be viewed at the wiki URL above.",
 			"",
 		].join("\n");
 
 		const content = body
 			? `${frontMatter}${shadowNotice}${body}`
 			: `${frontMatter}${shadowNotice}`;
-		const filePath = normalizePath(`${folderPath}/${this.sanitizeFilename(title)}.md`);
+		const filePath = normalizePath(`${folderPath}/${this.sanitizeFilename(title)}.lark`);
 		const finalPath = await this.resolveCollision(filePath);
 
 		return await this.app.vault.create(finalPath, content);
@@ -164,10 +166,10 @@ export class CreateFeishuDocModal extends Modal {
 	private async resolveCollision(path: string): Promise<string> {
 		let candidate = path;
 		let counter = 1;
-		const base = candidate.replace(/\.md$/, "");
+		const base = candidate.replace(/\.lark$/, "");
 
 		while (this.app.vault.getAbstractFileByPath(candidate)) {
-			candidate = `${base} (${counter}).md`;
+			candidate = `${base} (${counter}).lark`;
 			counter++;
 		}
 

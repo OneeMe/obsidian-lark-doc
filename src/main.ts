@@ -16,7 +16,8 @@ import {
 import {parseFeishuUrl} from "./types";
 import {CreateFeishuDocModal} from "./doc-creator";
 import {syncTitle} from "./title-sync";
-import {ensureBaseFile} from "./base-manager";
+import {ensureBaseFile, BASE_FILE_NAME} from "./base-manager";
+import {readFeishuFrontMatter} from "./feishu-frontmatter";
 
 export default class ObsidianFeishuPlugin extends Plugin {
 	settings!: ObsidianFeishuSettings;
@@ -33,6 +34,9 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new FeishuDocView(leaf)
 		);
 
+		// Register .lark file extension to open directly in FeishuDocView
+		this.registerExtensions(["lark"], FEISHU_VIEW_TYPE);
+
 		// Ribbon icons
 		this.addRibbonIcon("globe", "Open Feishu document for current note", () => {
 			void this.openFeishuForActiveFile();
@@ -42,13 +46,17 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			new CreateFeishuDocModal(this.app, this).open();
 		});
 
+		this.addRibbonIcon("database", "Open Feishu documents base", () => {
+			void this.openBaseFile();
+		});
+
 		// Commands
 		this.addCommand({
 			id: "open-feishu-doc",
 			name: "Open Feishu document for current note",
 			checkCallback: (checking: boolean) => {
 				const file = this.app.workspace.getActiveFile();
-				if (!file || file.extension !== "md") return false;
+				if (!this.isFeishuMetadataFile(file)) return false;
 				if (!checking) void this.openFeishuForActiveFile();
 				return true;
 			},
@@ -59,6 +67,14 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			name: "Create Feishu document",
 			callback: () => {
 				new CreateFeishuDocModal(this.app, this).open();
+			},
+		});
+
+		this.addCommand({
+			id: "open-feishu-base",
+			name: "Open Feishu documents base",
+			callback: () => {
+				void this.openBaseFile();
 			},
 		});
 
@@ -89,7 +105,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			name: "Sync Feishu title now",
 			checkCallback: (checking: boolean) => {
 				const file = this.app.workspace.getActiveFile();
-				if (!file || file.extension !== "md") return false;
+				if (!this.isFeishuMetadataFile(file)) return false;
 				if (!checking) void this.syncTitleForFile(file);
 				return true;
 			},
@@ -101,7 +117,10 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		// Auto-open Feishu view + title sync on file open
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
-				void this.onFileOpen(file);
+				// Defer to next frame so Obsidian finishes initializing the MarkdownView
+				requestAnimationFrame(() => {
+					void this.onFileOpen(file);
+				});
 			})
 		);
 
@@ -112,12 +131,9 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		await ensureBaseFile(this.app);
 	}
 
-	onunload() {
-		this.app.workspace.detachLeavesOfType(FEISHU_VIEW_TYPE);
-	}
-
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const savedSettings = await this.loadData() as Partial<ObsidianFeishuSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings ?? {});
 	}
 
 	async saveSettings() {
@@ -138,14 +154,16 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	// --- File Open Handler ---
 
 	private async onFileOpen(file: TFile | null): Promise<void> {
-		if (!file || file.extension !== "md") return;
+		if (!file) return;
+
+		// .lark files are handled by FeishuDocView directly via registerExtensions
+		if (file.extension === "lark") return;
+
+		// Back-compat: .md files with Feishu front matter
+		if (file.extension !== "md") return;
 
 		const entry = await this.indexer.getEntryByPath(file.path);
 		if (!entry) return;
-
-		if (this.settings.syncTitle) {
-			await this.syncTitleForFile(file);
-		}
 
 		if (this.settings.autoOpenFeishuView) {
 			await openFeishuView(this.app, entry, {
@@ -153,6 +171,11 @@ export default class ObsidianFeishuPlugin extends Plugin {
 				customCss: this.settings.frameCustomCss,
 				hideHeader: this.settings.hideFeishuHeader,
 			});
+		}
+
+		if (this.settings.syncTitle) {
+			// Fire-and-forget: do not block the view switch
+			void this.syncTitleForFile(file);
 		}
 	}
 
@@ -187,10 +210,14 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	}
 
 	private async runBackgroundSync(): Promise<void> {
-		const files = this.app.vault.getMarkdownFiles();
-		for (const file of files) {
-			const cache = this.app.metadataCache.getFileCache(file);
-			if (cache?.frontmatter?.feishu_doc_id) {
+		// Sync both .md (back-compat) and .lark files
+		const mdFiles = this.app.vault.getMarkdownFiles();
+		const larkFiles = this.app.vault.getFiles().filter(f => f.extension === "lark");
+		const allFiles = [...mdFiles, ...larkFiles];
+
+		for (const file of allFiles) {
+			const frontmatter = await readFeishuFrontMatter(this.app, file);
+			if (frontmatter?.feishu_doc_id) {
 				try {
 					await syncTitle(this.app, file, {
 						cliPath: this.settings.larkCliPath,
@@ -225,6 +252,21 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			customCss: this.settings.frameCustomCss,
 			hideHeader: this.settings.hideFeishuHeader,
 		});
+	}
+
+	private isFeishuMetadataFile(file: TFile | null): file is TFile {
+		return !!file && (file.extension === "md" || file.extension === "lark");
+	}
+
+	// --- Open Base File ---
+
+	private async openBaseFile(): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(BASE_FILE_NAME);
+		if (file instanceof TFile) {
+			await this.app.workspace.getLeaf().openFile(file);
+		} else {
+			new Notice(`Base file not found: ${BASE_FILE_NAME}`);
+		}
 	}
 
 	// --- Association Modal (existing) ---
@@ -297,19 +339,23 @@ class AssociationModal extends Modal {
 	onOpen(): void {
 		const {contentEl} = this;
 		contentEl.empty();
-		contentEl.createEl("h2", {text: "Add Feishu Association"});
+		contentEl.createEl("h2", {text: "Add Feishu association"});
 
 		const urlWrap = contentEl.createDiv();
 		urlWrap.createEl("label", {text: "Feishu document URL"});
-		this.urlInput = urlWrap.createEl("input", {type: "text"});
-		this.urlInput.style.width = "100%";
+		this.urlInput = urlWrap.createEl("input", {
+			cls: "feishu-modal-input",
+			type: "text",
+		});
 		this.urlInput.placeholder = "https://www.feishu.cn/docs/...";
 
 		const titleWrap = contentEl.createDiv();
 		titleWrap.createEl("label", {text: "Document title (optional)"});
-		this.titleInput = titleWrap.createEl("input", {type: "text"});
-		this.titleInput.style.width = "100%";
-		this.titleInput.placeholder = "My Feishu Doc";
+		this.titleInput = titleWrap.createEl("input", {
+			cls: "feishu-modal-input",
+			type: "text",
+		});
+		this.titleInput.placeholder = "My Feishu doc";
 
 		const btnContainer = contentEl.createDiv({cls: "modal-button-container"});
 		const saveBtn = btnContainer.createEl("button", {cls: "mod-cta", text: "Save"});
@@ -353,7 +399,6 @@ class AssociationModal extends Modal {
 		const lines = content.split("\n");
 		let inFm = false;
 		let fmStart = -1;
-		let fmEnd = -1;
 		const fmMap = new Map<string, string>();
 		const bodyLines: string[] = [];
 
@@ -366,7 +411,6 @@ class AssociationModal extends Modal {
 			}
 			if (inFm && line.trim() === "---") {
 				inFm = false;
-				fmEnd = i;
 				continue;
 			}
 			if (inFm) {

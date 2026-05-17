@@ -9,6 +9,7 @@ export interface ObsidianFeishuSettings {
 	syncTitleToFilename: boolean;
 	syncIntervalMinutes: number;
 	noteTemplate: string;
+	feishuTenantDomain: string;
 	frameZoom: number;
 	frameCustomCss: string;
 	hideFeishuHeader: boolean;
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: ObsidianFeishuSettings = {
 	syncTitleToFilename: false,
 	syncIntervalMinutes: 0,
 	noteTemplate: "",
+	feishuTenantDomain: "my.feishu.cn",
 	frameZoom: 1.0,
 	frameCustomCss: "",
 	hideFeishuHeader: true,
@@ -38,13 +40,15 @@ export class FeishuSettingTab extends PluginSettingTab {
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
-		containerEl.createEl("h2", {text: "Obsidian Feishu Settings"});
+		new Setting(containerEl)
+			.setName("Connection")
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName("Lark CLI path")
-			.setDesc("Path to the lark-cli executable.")
+			.setDesc("Path to the Lark CLI executable.")
 			.addText(text => text
-				.setPlaceholder("lark-cli")
+				.setPlaceholder("Lark CLI")
 				.setValue(this.plugin.settings.larkCliPath)
 				.onChange(async (value) => {
 					this.plugin.settings.larkCliPath = value.trim() || "lark-cli";
@@ -115,8 +119,9 @@ export class FeishuSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// --- Frame settings ---
-		containerEl.createEl("h3", {text: "Preview Frame"});
+		new Setting(containerEl)
+			.setName("Preview frame")
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName("Zoom level")

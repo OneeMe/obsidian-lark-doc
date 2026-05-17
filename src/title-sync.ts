@@ -1,6 +1,7 @@
 import {TFile, normalizePath} from "obsidian";
 import type {App} from "obsidian";
 import {fetchFeishuDocumentTitle} from "./lark-cli";
+import {readFeishuFrontMatter} from "./feishu-frontmatter";
 
 export interface TitleSyncOptions {
 	cliPath: string;
@@ -12,8 +13,7 @@ export async function syncTitle(
 	file: TFile,
 	options: TitleSyncOptions
 ): Promise<boolean> {
-	const cache = app.metadataCache.getFileCache(file);
-	const fm = cache?.frontmatter;
+	const fm = await readFeishuFrontMatter(app, file);
 	if (!fm?.feishu_doc_id) {
 		return false;
 	}
@@ -35,7 +35,7 @@ export async function syncTitle(
 	await updateFrontMatterTitle(app, file, newTitle);
 
 	if (options.syncToFilename) {
-		const newName = sanitizeFilename(newTitle) + ".md";
+		const newName = `${sanitizeFilename(newTitle)}.${file.extension}`;
 		const folder = file.parent?.path ?? "";
 		const newPath = normalizePath(folder ? `${folder}/${newName}` : newName);
 
