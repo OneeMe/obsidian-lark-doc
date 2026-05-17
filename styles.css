@@ -1,8 +1,90 @@
-/*
+/* Obsidian Feishu Plugin Styles */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.feishu-doc-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
 
-If your plugin does not need CSS, delete this file.
+.feishu-doc-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 2rem;
+	text-align: center;
+	color: var(--text-muted);
+}
 
-*/
+.feishu-doc-iframe {
+	flex: 1;
+	width: 100%;
+	height: 100%;
+	border: none;
+}
+
+/* Index panel */
+.feishu-index-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.feishu-index-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.5rem 0.75rem;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.feishu-index-header h4 {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+
+.feishu-index-actions {
+	display: flex;
+	gap: 0.25rem;
+}
+
+.feishu-index-list {
+	flex: 1;
+	overflow-y: auto;
+	padding: 0.25rem 0;
+}
+
+.feishu-index-empty {
+	padding: 1rem;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.feishu-index-item {
+	padding: 0.5rem 0.75rem;
+	cursor: pointer;
+	border-radius: var(--radius-s);
+	margin: 0 0.25rem;
+}
+
+.feishu-index-item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.feishu-index-item-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.feishu-index-item-meta {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-top: 0.125rem;
+}
