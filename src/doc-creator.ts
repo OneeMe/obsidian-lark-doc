@@ -113,7 +113,22 @@ export class CreateFeishuDocModal extends Modal {
 			"",
 		].join("\n");
 
-		const content = body ? `${frontMatter}\n${body}` : frontMatter;
+		const shadowNotice = [
+			"> **Shadow File** — This note is a local proxy for a Feishu (Lark) document.",
+			">",
+			"> **Remote source:** Use `lark-cli` to fetch the live content of this document.",
+			">",
+			"> ```bash",
+			`> lark-cli docs +fetch --api-version v2 --doc ${docId}`,
+			"> ```",
+			">",
+			"> This file contains only front matter metadata. The full content resides in Feishu and can be retrieved on-demand via the Lark CLI or associated Lark skills.",
+			"",
+		].join("\n");
+
+		const content = body
+			? `${frontMatter}${shadowNotice}${body}`
+			: `${frontMatter}${shadowNotice}`;
 		const filePath = normalizePath(`${folderPath}/${this.sanitizeFilename(title)}.md`);
 		const finalPath = await this.resolveCollision(filePath);
 
