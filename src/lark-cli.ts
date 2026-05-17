@@ -1,6 +1,7 @@
 import {Notice} from "obsidian";
 import {spawn} from "child_process";
 import type {FeishuDocInfo} from "./types";
+import {getEffectiveLarkCliPath} from "./lark-cli-resolver";
 
 export class LarkCliError extends Error {
 	constructor(message: string) {
@@ -48,6 +49,7 @@ export async function createFeishuDocument(
 	title: string,
 	content?: string
 ): Promise<FeishuDocInfo> {
+	const resolvedPath = getEffectiveLarkCliPath(cliPath);
 	const xmlContent = content
 		? `<title>${escapeXml(title)}</title><p>${escapeXml(content)}</p>`
 		: `<title>${escapeXml(title)}</title>`;
@@ -58,7 +60,7 @@ export async function createFeishuDocument(
 		"--content", xmlContent,
 	];
 
-	const {stdout} = await runCommand(cliPath, args);
+	const {stdout} = await runCommand(resolvedPath, args);
 
 	// Try to find JSON output from lark-cli
 	const lines = stdout.split("\n").map(l => l.trim()).filter(Boolean);
@@ -110,13 +112,14 @@ export async function fetchFeishuDocumentTitle(
 	cliPath: string,
 	docToken: string
 ): Promise<string> {
+	const resolvedPath = getEffectiveLarkCliPath(cliPath);
 	const args = [
 		"docs", "+fetch",
 		"--api-version", "v2",
 		"--doc", docToken,
 	];
 
-	const {stdout} = await runCommand(cliPath, args);
+	const {stdout} = await runCommand(resolvedPath, args);
 
 	// Try JSON first
 	const lines = stdout.split("\n").map(l => l.trim()).filter(Boolean);
