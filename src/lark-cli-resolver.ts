@@ -89,6 +89,21 @@ function resolveViaWhich(): string | undefined {
 }
 
 /**
+ * Try to get the user's shell PATH (includes fnm, nvm, etc.).
+ */
+export function resolveUserShellPath(): string | undefined {
+	try {
+		const path = execSync("/bin/sh -c 'echo $PATH'", {
+			encoding: "utf8",
+			timeout: 5000,
+		}).trim();
+		return path || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
  * Get the effective lark-cli path, falling back from user setting to auto-detection.
  */
 export function getEffectiveLarkCliPath(userSetting: string): string {

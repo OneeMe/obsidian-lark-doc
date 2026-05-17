@@ -9,6 +9,9 @@ export interface ObsidianFeishuSettings {
 	syncTitleToFilename: boolean;
 	syncIntervalMinutes: number;
 	noteTemplate: string;
+	frameZoom: number;
+	frameCustomCss: string;
+	hideFeishuHeader: boolean;
 }
 
 export const DEFAULT_SETTINGS: ObsidianFeishuSettings = {
@@ -19,6 +22,9 @@ export const DEFAULT_SETTINGS: ObsidianFeishuSettings = {
 	syncTitleToFilename: false,
 	syncIntervalMinutes: 0,
 	noteTemplate: "",
+	frameZoom: 1.0,
+	frameCustomCss: "",
+	hideFeishuHeader: true,
 };
 
 export class FeishuSettingTab extends PluginSettingTab {
@@ -107,6 +113,45 @@ export class FeishuSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.noteTemplate = value.trim();
 					await this.plugin.saveSettings();
+				}));
+
+		// --- Frame settings ---
+		containerEl.createEl("h3", {text: "Preview Frame"});
+
+		new Setting(containerEl)
+			.setName("Zoom level")
+			.setDesc("Scale the Feishu document preview (0.5 = half size, 1.5 = 150%).")
+			.addSlider(slider => slider
+				.setLimits(0.5, 2.0, 0.1)
+				.setValue(this.plugin.settings.frameZoom)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.frameZoom = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshFeishuViews();
+				}));
+
+		new Setting(containerEl)
+			.setName("Hide Feishu header")
+			.setDesc("Inject CSS to hide the Feishu document top navigation bar for a cleaner view.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.hideFeishuHeader)
+				.onChange(async (value) => {
+					this.plugin.settings.hideFeishuHeader = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshFeishuViews();
+				}));
+
+		new Setting(containerEl)
+			.setName("Custom CSS")
+			.setDesc("Additional CSS to inject into the Feishu preview frame.")
+			.addTextArea(textarea => textarea
+				.setPlaceholder(".header { display: none !important; }")
+				.setValue(this.plugin.settings.frameCustomCss)
+				.onChange(async (value) => {
+					this.plugin.settings.frameCustomCss = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshFeishuViews();
 				}));
 	}
 }

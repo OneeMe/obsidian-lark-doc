@@ -124,6 +124,17 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
+	// --- Frame refresh ---
+
+	refreshFeishuViews(): void {
+		const leaves = this.app.workspace.getLeavesOfType(FEISHU_VIEW_TYPE);
+		for (const leaf of leaves) {
+			const view = leaf.view as FeishuDocView;
+			view.setZoom(this.settings.frameZoom);
+			void view.injectCss(this.settings.frameCustomCss, this.settings.hideFeishuHeader);
+		}
+	}
+
 	// --- File Open Handler ---
 
 	private async onFileOpen(file: TFile | null): Promise<void> {
@@ -137,7 +148,11 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		}
 
 		if (this.settings.autoOpenFeishuView) {
-			await openFeishuView(this.app, entry);
+			await openFeishuView(this.app, entry, {
+				zoom: this.settings.frameZoom,
+				customCss: this.settings.frameCustomCss,
+				hideHeader: this.settings.hideFeishuHeader,
+			});
 		}
 	}
 
@@ -205,7 +220,11 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			new Notice("This note is not associated with a Feishu document.");
 			return;
 		}
-		await openFeishuView(this.app, entry);
+		await openFeishuView(this.app, entry, {
+			zoom: this.settings.frameZoom,
+			customCss: this.settings.frameCustomCss,
+			hideHeader: this.settings.hideFeishuHeader,
+		});
 	}
 
 	// --- Association Modal (existing) ---
