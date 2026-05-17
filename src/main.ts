@@ -4,6 +4,7 @@ import {
 	Notice,
 	Plugin,
 	TFile,
+	ViewState,
 	WorkspaceLeaf,
 } from "obsidian";
 import {FeishuDocView, FEISHU_VIEW_TYPE, openFeishuView} from "./feishu-view";
@@ -18,6 +19,7 @@ import {CreateFeishuDocModal} from "./doc-creator";
 import {syncTitle} from "./title-sync";
 import {ensureBaseFile, BASE_FILE_NAME} from "./base-manager";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
+import {getLarkMarkdownPathFromViewState, isLarkMarkdownFile} from "./lark-file";
 
 export default class ObsidianFeishuPlugin extends Plugin {
 	settings!: ObsidianFeishuSettings;
@@ -33,9 +35,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			FEISHU_VIEW_TYPE,
 			(leaf: WorkspaceLeaf) => new FeishuDocView(leaf)
 		);
-
-		// Register .lark file extension to open directly in FeishuDocView
-		this.registerExtensions(["lark"], FEISHU_VIEW_TYPE);
+		this.registerLarkMarkdownRouting();
 
 		// Ribbon icons
 		this.addRibbonIcon("globe", "Open Feishu document for current note", () => {
@@ -151,21 +151,63 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		}
 	}
 
+	// --- Markdown Shadow File Routing ---
+
+	private registerLarkMarkdownRouting(): void {
+		const originalSetViewState = Object.getOwnPropertyDescriptor(
+			WorkspaceLeaf.prototype,
+			"setViewState"
+		)?.value as WorkspaceLeaf["setViewState"];
+		const routeLarkMarkdownViewState = (viewState: ViewState) => this.routeLarkMarkdownViewState(viewState);
+
+		const patchedSetViewState: WorkspaceLeaf["setViewState"] = async function (
+			this: WorkspaceLeaf,
+			viewState: ViewState,
+			eState?: unknown
+		): Promise<void> {
+			const routedState = await routeLarkMarkdownViewState(viewState);
+			return await originalSetViewState.call(this, routedState, eState);
+		};
+
+		WorkspaceLeaf.prototype.setViewState = patchedSetViewState;
+		this.register(() => {
+			if (WorkspaceLeaf.prototype.setViewState === patchedSetViewState) {
+				WorkspaceLeaf.prototype.setViewState = originalSetViewState;
+			}
+		});
+	}
+
+	private async routeLarkMarkdownViewState(viewState: ViewState): Promise<ViewState> {
+		const filePath = getLarkMarkdownPathFromViewState(viewState);
+		if (!filePath) return viewState;
+
+		const entry = await this.indexer.getEntryByPath(filePath);
+		if (!entry) return viewState;
+
+		return {
+			...viewState,
+			type: FEISHU_VIEW_TYPE,
+			state: {
+				url: entry.feishu_url,
+				title: entry.feishu_title,
+				zoom: this.settings.frameZoom,
+				customCss: this.settings.frameCustomCss,
+				hideHeader: this.settings.hideFeishuHeader,
+			},
+		};
+	}
+
 	// --- File Open Handler ---
 
 	private async onFileOpen(file: TFile | null): Promise<void> {
 		if (!file) return;
 
-		// .lark files are handled by FeishuDocView directly via registerExtensions
-		if (file.extension === "lark") return;
-
-		// Back-compat: .md files with Feishu front matter
 		if (file.extension !== "md") return;
 
 		const entry = await this.indexer.getEntryByPath(file.path);
 		if (!entry) return;
 
-		if (this.settings.autoOpenFeishuView) {
+		if (isLarkMarkdownFile(file) || this.settings.autoOpenFeishuView) {
 			await openFeishuView(this.app, entry, {
 				zoom: this.settings.frameZoom,
 				customCss: this.settings.frameCustomCss,
@@ -210,12 +252,9 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	}
 
 	private async runBackgroundSync(): Promise<void> {
-		// Sync both .md (back-compat) and .lark files
 		const mdFiles = this.app.vault.getMarkdownFiles();
-		const larkFiles = this.app.vault.getFiles().filter(f => f.extension === "lark");
-		const allFiles = [...mdFiles, ...larkFiles];
 
-		for (const file of allFiles) {
+		for (const file of mdFiles) {
 			const frontmatter = await readFeishuFrontMatter(this.app, file);
 			if (frontmatter?.feishu_doc_id) {
 				try {
@@ -255,7 +294,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	}
 
 	private isFeishuMetadataFile(file: TFile | null): file is TFile {
-		return !!file && (file.extension === "md" || file.extension === "lark");
+		return !!file && file.extension === "md";
 	}
 
 	// --- Open Base File ---

@@ -2,6 +2,7 @@ import {TFile, normalizePath} from "obsidian";
 import type {App} from "obsidian";
 import {fetchFeishuDocumentTitle} from "./lark-cli";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
+import {getSyncedMarkdownFilename} from "./lark-file";
 
 export interface TitleSyncOptions {
 	cliPath: string;
@@ -35,7 +36,7 @@ export async function syncTitle(
 	await updateFrontMatterTitle(app, file, newTitle);
 
 	if (options.syncToFilename) {
-		const newName = `${sanitizeFilename(newTitle)}.${file.extension}`;
+		const newName = getSyncedMarkdownFilename(file, sanitizeFilename(newTitle));
 		const folder = file.parent?.path ?? "";
 		const newPath = normalizePath(folder ? `${folder}/${newName}` : newName);
 

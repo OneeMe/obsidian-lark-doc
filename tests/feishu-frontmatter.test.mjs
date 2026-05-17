@@ -65,7 +65,7 @@ async function loadFrontmatterModule() {
 	};
 }
 
-test("reads Feishu front matter from .lark file content when metadata cache is empty", async () => {
+test("reads Feishu front matter from .lark.md file content when metadata cache is empty", async () => {
 	const {module, cleanup} = await loadFrontmatterModule();
 	try {
 		const content = [
@@ -85,7 +85,7 @@ test("reads Feishu front matter from .lark file content when metadata cache is e
 				cachedRead: async () => content,
 			},
 		};
-		const file = {extension: "lark", path: "Feishu/Project Plan.lark"};
+		const file = {extension: "md", path: "Feishu/Project Plan.lark.md"};
 
 		const frontmatter = await module.readFeishuFrontMatter(app, file);
 

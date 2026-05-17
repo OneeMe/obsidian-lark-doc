@@ -1,6 +1,7 @@
 import {App, Modal, Notice, TFile, normalizePath} from "obsidian";
 import type ObsidianFeishuPlugin from "./main";
 import {createFeishuDocument} from "./lark-cli";
+import {LARK_MARKDOWN_SUFFIX} from "./lark-file";
 
 export class CreateFeishuDocModal extends Modal {
 	private plugin: ObsidianFeishuPlugin;
@@ -74,7 +75,7 @@ export class CreateFeishuDocModal extends Modal {
 
 			const note = await this.createLarkNote(docInfo.title, docInfo.docId, docInfo.url);
 			if (note) {
-				// .lark files open directly in FeishuDocView via registerExtensions
+				// .lark.md files stay in Obsidian's Markdown open flow, then switch to FeishuDocView.
 				await this.app.workspace.getLeaf().openFile(note);
 			}
 
@@ -153,7 +154,7 @@ export class CreateFeishuDocModal extends Modal {
 		const content = body
 			? `${frontMatter}${shadowNotice}${body}`
 			: `${frontMatter}${shadowNotice}`;
-		const filePath = normalizePath(`${folderPath}/${this.sanitizeFilename(title)}.lark`);
+		const filePath = normalizePath(`${folderPath}/${this.sanitizeFilename(title)}${LARK_MARKDOWN_SUFFIX}`);
 		const finalPath = await this.resolveCollision(filePath);
 
 		return await this.app.vault.create(finalPath, content);
@@ -166,10 +167,10 @@ export class CreateFeishuDocModal extends Modal {
 	private async resolveCollision(path: string): Promise<string> {
 		let candidate = path;
 		let counter = 1;
-		const base = candidate.replace(/\.lark$/, "");
+		const base = candidate.slice(0, -LARK_MARKDOWN_SUFFIX.length);
 
 		while (this.app.vault.getAbstractFileByPath(candidate)) {
-			candidate = `${base} (${counter}).lark`;
+			candidate = `${base} (${counter})${LARK_MARKDOWN_SUFFIX}`;
 			counter++;
 		}
 
