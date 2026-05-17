@@ -6,6 +6,8 @@ export class CreateFeishuDocModal extends Modal {
 	private plugin: ObsidianFeishuPlugin;
 	private titleInput: HTMLInputElement | undefined;
 	private contentInput: HTMLTextAreaElement | undefined;
+	private createBtn: HTMLButtonElement | undefined;
+	private isLoading = false;
 
 	constructor(app: App, plugin: ObsidianFeishuPlugin) {
 		super(app);
@@ -32,8 +34,8 @@ export class CreateFeishuDocModal extends Modal {
 
 		const btnContainer = contentEl.createDiv({cls: "modal-button-container"});
 
-		const createBtn = btnContainer.createEl("button", {cls: "mod-cta", text: "Create"});
-		createBtn.addEventListener("click", () => {
+		this.createBtn = btnContainer.createEl("button", {cls: "mod-cta", text: "Create"});
+		this.createBtn.addEventListener("click", () => {
 			void this.create();
 		});
 
@@ -48,6 +50,8 @@ export class CreateFeishuDocModal extends Modal {
 	}
 
 	private async create(): Promise<void> {
+		if (this.isLoading) return;
+
 		const title = this.titleInput?.value.trim() ?? "";
 		const content = this.contentInput?.value.trim() ?? "";
 
@@ -55,6 +59,8 @@ export class CreateFeishuDocModal extends Modal {
 			new Notice("Please enter a document title.");
 			return;
 		}
+
+		this.setLoading(true);
 
 		try {
 			const docInfo = await createFeishuDocument(
@@ -77,6 +83,22 @@ export class CreateFeishuDocModal extends Modal {
 			const msg = err instanceof Error ? err.message : String(err);
 			new Notice(`Failed to create Feishu document: ${msg}`);
 			console.error("[obsidian-feishu] create doc error:", err);
+		} finally {
+			this.setLoading(false);
+		}
+	}
+
+	private setLoading(loading: boolean): void {
+		this.isLoading = loading;
+		if (this.createBtn) {
+			this.createBtn.disabled = loading;
+			this.createBtn.textContent = loading ? "Creating..." : "Create";
+		}
+		if (this.titleInput) {
+			this.titleInput.disabled = loading;
+		}
+		if (this.contentInput) {
+			this.contentInput.disabled = loading;
 		}
 	}
 
