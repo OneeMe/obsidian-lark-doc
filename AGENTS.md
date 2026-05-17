@@ -1,5 +1,18 @@
 # Obsidian community plugin
 
+## Agent Skills
+
+When developing this plugin, follow the guidelines in `.claude/skills/obsidian/SKILL.md`. It contains:
+
+- All 36+ ESLint rules from `eslint-plugin-obsidianmd`
+- Official Plugin Guidelines and submission requirements
+- Memory management and lifecycle best practices
+- UI/UX standards (sentence case, command naming, etc.)
+- API best practices (`requestUrl` vs `fetch`, `Vault.process()` vs `modify()`, etc.)
+- Security, accessibility (A11y), and mobile compatibility guidelines
+
+Reference files under `.claude/skills/obsidian/reference/` provide deep dives into specific topics (memory management, CSS styling, file operations, submission checklist, etc.).
+
 ## Project overview
 
 - Target: Obsidian Community Plugin (TypeScript → bundled JavaScript).
