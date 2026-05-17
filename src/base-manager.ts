@@ -29,5 +29,13 @@ export async function ensureBaseFile(app: App): Promise<void> {
 	if (existing) {
 		return;
 	}
-	await app.vault.create(path, BASE_CONTENT);
+	try {
+		await app.vault.create(path, BASE_CONTENT);
+	} catch (err) {
+		// Ignore "already exists" — race condition during startup
+		if (err instanceof Error && err.message.includes("already exists")) {
+			return;
+		}
+		throw err;
+	}
 }
