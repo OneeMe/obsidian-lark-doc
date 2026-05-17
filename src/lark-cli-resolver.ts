@@ -88,18 +88,33 @@ function resolveViaWhich(): string | undefined {
 	return undefined;
 }
 
+function getUserShell(): string {
+	return process.env.SHELL || "/bin/zsh";
+}
+
 /**
- * Try to get the user's shell PATH (includes fnm, nvm, etc.).
+ * Try to get the user's shell PATH using a login shell
+ * so that .zshrc / .bashrc (and fnm/nvm initializers) are loaded.
  */
 export function resolveUserShellPath(): string | undefined {
+	const shell = getUserShell();
 	try {
-		const path = execSync("/bin/sh -c 'echo $PATH'", {
+		const path = execSync(`${shell} -l -c 'echo "$PATH"'`, {
 			encoding: "utf8",
-			timeout: 5000,
+			timeout: 10000,
 		}).trim();
 		return path || undefined;
 	} catch {
-		return undefined;
+		// Fallback: try without -l flag
+		try {
+			const path = execSync(`${shell} -c 'echo "$PATH"'`, {
+				encoding: "utf8",
+				timeout: 5000,
+			}).trim();
+			return path || undefined;
+		} catch {
+			return undefined;
+		}
 	}
 }
 
