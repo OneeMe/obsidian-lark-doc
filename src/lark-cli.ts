@@ -101,7 +101,7 @@ export async function createFeishuDocument(
 	}
 
 	const docToken = extractString(parsed, ["document.document_id", "document.open_url", "url", "token", "doc_token"]);
-	const url = extractString(parsed, ["document.open_url", "url"]) || (docToken ? `https://www.feishu.cn/docs/${docToken}` : "");
+	const url = extractString(parsed, ["document.open_url", "url"]) || "";
 	const resolvedTitle = extractString(parsed, ["document.title", "title"]) || title;
 
 	if (!docToken) {

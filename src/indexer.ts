@@ -41,9 +41,9 @@ export class FeishuIndexer {
 		if (!fm) return undefined;
 
 		const docId = fm.feishu_doc_id ?? extractDocIdFromUrl(fm.feishu_url ?? "") ?? "";
-		const url = fm.feishu_url ?? (docId ? `https://www.feishu.cn/docs/${docId}` : "");
+		const url = fm.feishu_url ?? "";
 
-		if (!docId || !url) return undefined;
+		if (!docId) return undefined;
 
 		return {
 			path: file.path,

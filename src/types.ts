@@ -37,10 +37,11 @@ export interface IndexEntry {
 
 /**
  * Regular expressions for Feishu URL parsing.
+ * Matches any subdomain of feishu.cn / larksuite.com with docs/docx/wiki paths.
  */
 const FEISHU_URL_PATTERNS = [
-	/feishu\.cn\/(?:docs|docx|wiki)\/([a-zA-Z0-9]+)/,
-	/larksuite\.com\/(?:docs|docx|wiki)\/([a-zA-Z0-9]+)/,
+	/[\w-]+\.feishu\.cn\/(?:docs|docx|wiki)\/([a-zA-Z0-9]+)/,
+	/[\w-]+\.larksuite\.com\/(?:docs|docx|wiki)\/([a-zA-Z0-9]+)/,
 ];
 
 /**
@@ -57,14 +58,18 @@ export function extractDocIdFromUrl(url: string): string | undefined {
 }
 
 /**
- * Normalize a Feishu URL to a canonical form.
+ * Normalize a Feishu URL — strip query params and fragments,
+ * but preserve the original domain and path type.
  */
 export function normalizeFeishuUrl(url: string): string {
-	const docId = extractDocIdFromUrl(url);
-	if (!docId) {
-		return url.trim();
+	const trimmed = url.trim();
+	try {
+		const u = new URL(trimmed);
+		// Strip query params and hash, keep origin + pathname
+		return `${u.origin}${u.pathname}`;
+	} catch {
+		return trimmed;
 	}
-	return `https://www.feishu.cn/docs/${docId}`;
 }
 
 /**
