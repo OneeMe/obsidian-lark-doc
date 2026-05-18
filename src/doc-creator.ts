@@ -1,12 +1,11 @@
-import {App, Modal, Notice, TFile, normalizePath} from "obsidian";
+import {App, Modal, Notice} from "obsidian";
 import type ObsidianFeishuPlugin from "./main";
 import {createFeishuDocument} from "./lark-cli";
-import {LARK_MARKDOWN_SUFFIX} from "./lark-file";
+import {createLarkMarkdownNote} from "./lark-note";
 
 export class CreateFeishuDocModal extends Modal {
 	private plugin: ObsidianFeishuPlugin;
 	private titleInput: HTMLInputElement | undefined;
-	private contentInput: HTMLTextAreaElement | undefined;
 	private createBtn: HTMLButtonElement | undefined;
 	private isLoading = false;
 
@@ -18,31 +17,24 @@ export class CreateFeishuDocModal extends Modal {
 	onOpen(): void {
 		const {contentEl} = this;
 		contentEl.empty();
-		contentEl.createEl("h2", {text: "Create Feishu document"});
+		contentEl.createEl("h2", {text: this.plugin.t("modal.create.title")});
 
 		const titleWrap = contentEl.createDiv();
-		titleWrap.createEl("label", {text: "Document title"});
+		titleWrap.createEl("label", {text: this.plugin.t("modal.documentTitle.label")});
 		this.titleInput = titleWrap.createEl("input", {
 			cls: "feishu-modal-input",
 			type: "text",
 		});
-		this.titleInput.placeholder = "My document";
-
-		const contentWrap = contentEl.createDiv();
-		contentWrap.createEl("label", {text: "Initial content (optional)"});
-		this.contentInput = contentWrap.createEl("textarea", {
-			cls: "feishu-modal-textarea",
-		});
-		this.contentInput.placeholder = "Optional content...";
+		this.titleInput.placeholder = this.plugin.t("modal.documentTitle.placeholder");
 
 		const btnContainer = contentEl.createDiv({cls: "modal-button-container"});
 
-		this.createBtn = btnContainer.createEl("button", {cls: "mod-cta", text: "Create"});
+		this.createBtn = btnContainer.createEl("button", {cls: "mod-cta", text: this.plugin.t("button.create")});
 		this.createBtn.addEventListener("click", () => {
 			void this.create();
 		});
 
-		const cancelBtn = btnContainer.createEl("button", {text: "Cancel"});
+		const cancelBtn = btnContainer.createEl("button", {text: this.plugin.t("button.cancel")});
 		cancelBtn.addEventListener("click", () => {
 			this.close();
 		});
@@ -56,10 +48,9 @@ export class CreateFeishuDocModal extends Modal {
 		if (this.isLoading) return;
 
 		const title = this.titleInput?.value.trim() ?? "";
-		const content = this.contentInput?.value.trim() ?? "";
 
 		if (!title) {
-			new Notice("Please enter a document title.");
+			new Notice(this.plugin.t("notice.enterDocumentTitle"));
 			return;
 		}
 
@@ -69,21 +60,28 @@ export class CreateFeishuDocModal extends Modal {
 			const docInfo = await createFeishuDocument(
 				this.plugin.settings.larkCliPath,
 				title,
-				this.plugin.settings.feishuTenantDomain,
-				content || undefined
+				this.plugin.settings.feishuTenantDomain
 			);
 
-			const note = await this.createLarkNote(docInfo.title, docInfo.docId, docInfo.url);
+			const note = await createLarkMarkdownNote(this.app, {
+				folderPath: this.plugin.settings.defaultNoteFolder,
+				templatePath: this.plugin.settings.noteTemplate,
+				title: docInfo.title,
+				docId: docInfo.docId,
+				url: docInfo.url,
+				translate: (key, vars) => this.plugin.t(key, vars),
+				onTemplateMissing: (path) => new Notice(this.plugin.t("notice.templateNotFound", {path})),
+			});
 			if (note) {
 				// .lark.md files stay in Obsidian's Markdown open flow, then switch to FeishuDocView.
 				await this.app.workspace.getLeaf().openFile(note);
 			}
 
-			new Notice(`Created Feishu document: ${docInfo.title}`);
+			new Notice(this.plugin.t("notice.createdDocument", {title: docInfo.title}));
 			this.close();
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			new Notice(`Failed to create Feishu document: ${msg}`);
+			new Notice(this.plugin.t("notice.createDocumentFailed", {message: msg}));
 			console.error("[obsidian-feishu] create doc error:", err);
 		} finally {
 			this.setLoading(false);
@@ -94,86 +92,10 @@ export class CreateFeishuDocModal extends Modal {
 		this.isLoading = loading;
 		if (this.createBtn) {
 			this.createBtn.disabled = loading;
-			this.createBtn.textContent = loading ? "Creating..." : "Create";
+			this.createBtn.textContent = loading ? this.plugin.t("button.creating") : this.plugin.t("button.create");
 		}
 		if (this.titleInput) {
 			this.titleInput.disabled = loading;
 		}
-		if (this.contentInput) {
-			this.contentInput.disabled = loading;
-		}
-	}
-
-	private async createLarkNote(
-		title: string,
-		docId: string,
-		url: string
-	): Promise<TFile | null> {
-		const folder = this.plugin.settings.defaultNoteFolder;
-		const folderPath = normalizePath(folder);
-
-		const folderExists = this.app.vault.getAbstractFileByPath(folderPath);
-		if (!folderExists) {
-			await this.app.vault.createFolder(folderPath);
-		}
-
-		let body = "";
-		const templatePath = this.plugin.settings.noteTemplate;
-		if (templatePath) {
-			const templateFile = this.app.vault.getAbstractFileByPath(normalizePath(templatePath));
-			if (templateFile instanceof TFile) {
-				body = await this.app.vault.read(templateFile);
-			} else {
-				new Notice(`Template not found: ${templatePath}`);
-			}
-		}
-
-		const frontMatter = [
-			"---",
-			`feishu_doc_id: ${docId}`,
-			`feishu_url: ${url}`,
-			`feishu_title: ${title}`,
-			"---",
-			"",
-		].join("\n");
-
-		const shadowNotice = [
-			"> **Shadow File** — This note is a local proxy for a Feishu (Lark) wiki document.",
-			">",
-			`> **Wiki URL:** ${url}`,
-			">",
-			"> **Node info (via lark-cli):**",
-			"> ```bash",
-			`> lark-cli wiki spaces get_node --params '{"token":"${docId}"}' --format json`,
-			"> ```",
-			">",
-			"> This file contains only front matter metadata. The full content resides in Feishu and can be viewed at the wiki URL above.",
-			"",
-		].join("\n");
-
-		const content = body
-			? `${frontMatter}${shadowNotice}${body}`
-			: `${frontMatter}${shadowNotice}`;
-		const filePath = normalizePath(`${folderPath}/${this.sanitizeFilename(title)}${LARK_MARKDOWN_SUFFIX}`);
-		const finalPath = await this.resolveCollision(filePath);
-
-		return await this.app.vault.create(finalPath, content);
-	}
-
-	private sanitizeFilename(name: string): string {
-		return name.replace(/[\\/:*?"\u003c\u003e|]/g, " ").trim();
-	}
-
-	private async resolveCollision(path: string): Promise<string> {
-		let candidate = path;
-		let counter = 1;
-		const base = candidate.slice(0, -LARK_MARKDOWN_SUFFIX.length);
-
-		while (this.app.vault.getAbstractFileByPath(candidate)) {
-			candidate = `${base} (${counter})${LARK_MARKDOWN_SUFFIX}`;
-			counter++;
-		}
-
-		return candidate;
 	}
 }

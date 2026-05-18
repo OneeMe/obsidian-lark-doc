@@ -1,50 +1,188 @@
 import {App, normalizePath, TFile} from "obsidian";
+import {translate, type Translator} from "./i18n";
 
 export const BASE_FILE_NAME = "Feishu Documents.base";
 
-const BASE_CONTENT = `filters: 'feishu_doc_id'
+function createBaseContent(t: Translator = (key, vars) => translate("en", key, vars)): string {
+	return `filters: 'feishu_doc_id'
 
 properties:
   feishu_title:
-    displayName: "Feishu Title"
+    displayName: "${t("base.feishuTitle")}"
   feishu_url:
-    displayName: "URL"
+    displayName: "${t("base.url")}"
 
 formulas:
   doc_link: 'link(feishu_url, feishu_title)'
 
 views:
   - type: table
-    name: "All Documents"
+    name: "${t("base.allDocuments")}"
     order:
       - file.name
       - feishu_title
       - feishu_url
       - file.mtime
 `;
+}
 
-export async function ensureBaseFile(app: App): Promise<void> {
-	const path = normalizePath(BASE_FILE_NAME);
+export function getBaseFilePath(defaultNoteFolder: string): string {
+	const folderPath = normalizePath(defaultNoteFolder.trim());
+	return folderPath ? normalizePath(`${folderPath}/${BASE_FILE_NAME}`) : normalizePath(BASE_FILE_NAME);
+}
+
+export async function ensureBaseFile(
+	app: App,
+	defaultNoteFolder: string,
+	t?: Translator
+): Promise<void> {
+	const path = getBaseFilePath(defaultNoteFolder);
+	const baseContent = createBaseContent(t);
 	const existing = app.vault.getAbstractFileByPath(path);
 
 	if (existing instanceof TFile) {
-		// Update existing file if the filters line has changed
-		const current = await app.vault.read(existing);
-		const currentFilterLine = current.split("\n")[0]?.trim();
-		const newFilterLine = BASE_CONTENT.split("\n")[0]?.trim();
-		if (currentFilterLine !== newFilterLine) {
-			await app.vault.modify(existing, BASE_CONTENT);
-		}
+		await updateBaseContent(app, path, baseContent, existing);
 		return;
 	}
 
-	try {
-		await app.vault.create(path, BASE_CONTENT);
-	} catch (err) {
-		// Ignore "already exists" — race condition during startup
-		if (err instanceof Error && err.message.includes("already exists")) {
+	if (await adapterPathExists(app, path)) {
+		await updateBaseContent(app, path, baseContent);
+		return;
+	}
+
+	const folderPath = normalizePath(defaultNoteFolder.trim());
+	const legacyBase = path !== BASE_FILE_NAME
+		? app.vault.getAbstractFileByPath(BASE_FILE_NAME)
+		: null;
+	if (legacyBase instanceof TFile) {
+		await ensureFolder(app, folderPath);
+		await renameBaseFile(app, legacyBase, path);
+		return;
+	}
+
+	await ensureFolder(app, folderPath);
+
+	await createBaseFile(app, path, baseContent);
+}
+
+async function updateBaseContent(
+	app: App,
+	path: string,
+	baseContent: string,
+	file?: TFile
+): Promise<void> {
+	const current = file
+		? await app.vault.read(file)
+		: await app.vault.adapter.read(path);
+	const currentFilterLine = current.split("\n")[0]?.trim();
+	const newFilterLine = baseContent.split("\n")[0]?.trim();
+	if (currentFilterLine === newFilterLine) return;
+
+	if (file) {
+		try {
+			await app.vault.modify(file, baseContent);
+			return;
+		} catch (err) {
+			await writeBaseFileWithAdapterFallback(app, path, baseContent, err);
 			return;
 		}
-		throw err;
 	}
+
+	await app.vault.adapter.write(path, baseContent);
+}
+
+async function renameBaseFile(app: App, file: TFile, path: string): Promise<void> {
+	try {
+		await app.vault.rename(file, path);
+		return;
+	} catch (err) {
+		if (await adapterPathExists(app, path)) {
+			return;
+		}
+		try {
+			await app.vault.adapter.rename(file.path, path);
+			return;
+		} catch (adapterErr) {
+			throw combineErrors("rename base file", err, adapterErr);
+		}
+	}
+}
+
+async function createBaseFile(app: App, path: string, baseContent: string): Promise<void> {
+	try {
+		await app.vault.create(path, baseContent);
+		return;
+	} catch (err) {
+		if (isAlreadyExistsError(err) || await adapterPathExists(app, path)) {
+			return;
+		}
+		await writeBaseFileWithAdapterFallback(app, path, baseContent, err);
+	}
+}
+
+async function ensureFolder(app: App, folderPath: string): Promise<void> {
+	if (!folderPath) return;
+
+	const parts = folderPath.split("/").filter(Boolean);
+	let current = "";
+	for (const part of parts) {
+		current = current ? `${current}/${part}` : part;
+		if (app.vault.getAbstractFileByPath(current) || await adapterPathExists(app, current)) {
+			continue;
+		}
+
+		try {
+			await app.vault.createFolder(current);
+		} catch (err) {
+			if (isAlreadyExistsError(err) || await adapterPathExists(app, current)) {
+				continue;
+			}
+			try {
+				await app.vault.adapter.mkdir(current);
+			} catch (adapterErr) {
+				if (isAlreadyExistsError(adapterErr) || await adapterPathExists(app, current)) {
+					continue;
+				}
+				throw combineErrors(`create folder ${current}`, err, adapterErr);
+			}
+		}
+	}
+}
+
+async function writeBaseFileWithAdapterFallback(
+	app: App,
+	path: string,
+	baseContent: string,
+	originalErr: unknown
+): Promise<void> {
+	try {
+		await app.vault.adapter.write(path, baseContent);
+	} catch (adapterErr) {
+		if (isAlreadyExistsError(adapterErr) || await adapterPathExists(app, path)) {
+			return;
+		}
+		throw combineErrors("write base file", originalErr, adapterErr);
+	}
+}
+
+async function adapterPathExists(app: App, path: string): Promise<boolean> {
+	try {
+		return await app.vault.adapter.exists(path);
+	} catch {
+		return false;
+	}
+}
+
+function isAlreadyExistsError(err: unknown): boolean {
+	return err instanceof Error && err.message.includes("already exists");
+}
+
+function combineErrors(operation: string, primary: unknown, fallback: unknown): Error {
+	return new Error(
+		`Failed to ${operation}. Vault error: ${formatError(primary)}. Adapter error: ${formatError(fallback)}`
+	);
+}
+
+function formatError(err: unknown): string {
+	return err instanceof Error ? err.message : String(err);
 }

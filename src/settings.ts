@@ -1,7 +1,9 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
 import type ObsidianFeishuPlugin from "./main";
+import {LANGUAGE_OPTIONS, type PluginLanguage} from "./i18n";
 
 export interface ObsidianFeishuSettings {
+	language: PluginLanguage;
 	larkCliPath: string;
 	defaultNoteFolder: string;
 	autoOpenFeishuView: boolean;
@@ -16,6 +18,7 @@ export interface ObsidianFeishuSettings {
 }
 
 export const DEFAULT_SETTINGS: ObsidianFeishuSettings = {
+	language: "auto",
 	larkCliPath: "lark-cli",
 	defaultNoteFolder: "Feishu",
 	autoOpenFeishuView: true,
@@ -40,15 +43,38 @@ export class FeishuSettingTab extends PluginSettingTab {
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
+
+		const t = this.plugin.t.bind(this.plugin);
+
 		new Setting(containerEl)
-			.setName("Connection")
+			.setName(t("settings.interface"))
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Lark CLI path")
-			.setDesc("Path to the Lark CLI executable.")
+			.setName(t("settings.language.name"))
+			.setDesc(t("settings.language.desc"))
+			.addDropdown(dropdown => {
+				for (const option of LANGUAGE_OPTIONS) {
+					dropdown.addOption(option.value, t(option.labelKey));
+				}
+				dropdown
+					.setValue(this.plugin.settings.language)
+					.onChange(async (value) => {
+						this.plugin.settings.language = value as PluginLanguage;
+						await this.plugin.saveSettings();
+						this.display();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(t("settings.connection"))
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("settings.larkCliPath.name"))
+			.setDesc(t("settings.larkCliPath.desc"))
 			.addText(text => text
-				.setPlaceholder("Lark CLI")
+				.setPlaceholder(t("settings.larkCliPath.placeholder"))
 				.setValue(this.plugin.settings.larkCliPath)
 				.onChange(async (value) => {
 					this.plugin.settings.larkCliPath = value.trim() || "lark-cli";
@@ -56,8 +82,8 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Default note folder")
-			.setDesc("Vault folder where new Feishu-linked notes are created.")
+			.setName(t("settings.defaultNoteFolder.name"))
+			.setDesc(t("settings.defaultNoteFolder.desc"))
 			.addText(text => text
 				.setPlaceholder("Feishu")
 				.setValue(this.plugin.settings.defaultNoteFolder)
@@ -67,8 +93,8 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Auto-open Feishu view")
-			.setDesc("Automatically open the Feishu document preview when you open a linked note.")
+			.setName(t("settings.autoOpenFeishuView.name"))
+			.setDesc(t("settings.autoOpenFeishuView.desc"))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.autoOpenFeishuView)
 				.onChange(async (value) => {
@@ -77,8 +103,8 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Sync title from Feishu")
-			.setDesc("Fetch the latest title from Feishu when opening a linked note.")
+			.setName(t("settings.syncTitle.name"))
+			.setDesc(t("settings.syncTitle.desc"))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.syncTitle)
 				.onChange(async (value) => {
@@ -87,8 +113,8 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Sync title to filename")
-			.setDesc("Rename the Obsidian note file when the Feishu title changes.")
+			.setName(t("settings.syncTitleToFilename.name"))
+			.setDesc(t("settings.syncTitleToFilename.desc"))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.syncTitleToFilename)
 				.onChange(async (value) => {
@@ -97,8 +123,8 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Background sync interval (minutes)")
-			.setDesc("How often to check for title changes in the background (0 = disabled).")
+			.setName(t("settings.backgroundSyncInterval.name"))
+			.setDesc(t("settings.backgroundSyncInterval.desc"))
 			.addSlider(slider => slider
 				.setLimits(0, 60, 5)
 				.setValue(this.plugin.settings.syncIntervalMinutes)
@@ -109,10 +135,10 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Note template")
-			.setDesc("Optional template file (vault path) for new notes. Front matter is prepended automatically.")
+			.setName(t("settings.noteTemplate.name"))
+			.setDesc(t("settings.noteTemplate.desc"))
 			.addText(text => text
-				.setPlaceholder("Templates/Feishu Note.md")
+				.setPlaceholder(t("settings.noteTemplate.placeholder"))
 				.setValue(this.plugin.settings.noteTemplate)
 				.onChange(async (value) => {
 					this.plugin.settings.noteTemplate = value.trim();
@@ -120,12 +146,12 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Preview frame")
+			.setName(t("settings.previewFrame"))
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Zoom level")
-			.setDesc("Scale the Feishu document preview (0.5 = half size, 1.5 = 150%).")
+			.setName(t("settings.zoomLevel.name"))
+			.setDesc(t("settings.zoomLevel.desc"))
 			.addSlider(slider => slider
 				.setLimits(0.5, 2.0, 0.1)
 				.setValue(this.plugin.settings.frameZoom)
@@ -137,8 +163,8 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Hide Feishu header")
-			.setDesc("Inject CSS to hide the Feishu document top navigation bar for a cleaner view.")
+			.setName(t("settings.hideFeishuHeader.name"))
+			.setDesc(t("settings.hideFeishuHeader.desc"))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.hideFeishuHeader)
 				.onChange(async (value) => {
@@ -148,10 +174,10 @@ export class FeishuSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName("Custom CSS")
-			.setDesc("Additional CSS to inject into the Feishu preview frame.")
+			.setName(t("settings.customCss.name"))
+			.setDesc(t("settings.customCss.desc"))
 			.addTextArea(textarea => textarea
-				.setPlaceholder(".header { display: none !important; }")
+				.setPlaceholder(t("settings.customCss.placeholder"))
 				.setValue(this.plugin.settings.frameCustomCss)
 				.onChange(async (value) => {
 					this.plugin.settings.frameCustomCss = value;

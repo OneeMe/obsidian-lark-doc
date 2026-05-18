@@ -1,6 +1,7 @@
-import {App, FileView, MarkdownView, TFile, ViewStateResult} from "obsidian";
+import {App, FileView, MarkdownView, Notice, TFile, ViewStateResult, WorkspaceLeaf} from "obsidian";
 import type {IndexEntry} from "./types";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
+import {translate, type TranslationKey, type TranslationVars, type Translator} from "./i18n";
 
 export const FEISHU_VIEW_TYPE = "feishu-doc-view";
 
@@ -26,21 +27,32 @@ const HIDE_HEADER_CSS = `
 `;
 
 export class FeishuDocView extends FileView {
+	navigation = false;
 	private currentUrl: string | undefined;
 	private currentTitle: string | undefined;
+	private currentSourcePath: string | undefined;
 	private currentZoom = 1.0;
 	private currentCustomCss = "";
 	private currentHideHeader = true;
 	private webviewEl: WebviewLike | undefined;
 	private zoomLevel = 1.0;
 	private cssKey: string | undefined;
+	private syncActionEl: HTMLElement | undefined;
+	private options: FeishuDocViewOptions;
+
+	constructor(leaf: WorkspaceLeaf, options: FeishuDocViewOptions = {}) {
+		super(leaf);
+		this.options = options;
+	}
 
 	getViewType(): string {
 		return FEISHU_VIEW_TYPE;
 	}
 
 	getDisplayText(): string {
-		return this.currentTitle ? `Feishu: ${this.currentTitle}` : "Feishu Document";
+		return this.currentTitle
+			? this.t("view.displayPrefix", {title: this.currentTitle})
+			: this.t("view.defaultTitle");
 	}
 
 	getIcon(): string {
@@ -50,6 +62,12 @@ export class FeishuDocView extends FileView {
 	async onOpen(): Promise<void> {
 		this.contentEl.empty();
 		this.contentEl.addClass("feishu-doc-view");
+
+		if (!this.syncActionEl) {
+			this.syncActionEl = this.addAction("refresh-cw", this.t("view.syncAction"), () => {
+				void this.syncCurrentFile();
+			});
+		}
 
 		// FileView sets this.file before onOpen runs; load it now.
 		if (this.file) {
@@ -71,6 +89,7 @@ export class FeishuDocView extends FileView {
 	}
 
 	private async loadFile(file: TFile): Promise<void> {
+		this.currentSourcePath = file.path;
 		const fm = await readFeishuFrontMatter(this.app, file);
 		const url = fm?.feishu_url;
 		if (url) {
@@ -82,12 +101,13 @@ export class FeishuDocView extends FileView {
 	}
 
 	async loadEntry(entry: IndexEntry, options?: FrameOptions): Promise<void> {
+		this.currentSourcePath = entry.path;
 		await this.loadUrl(entry.feishu_url, entry.feishu_title ?? entry.feishu_doc_id, options);
 	}
 
 	async loadUrl(url: string, title?: string, options?: FrameOptions): Promise<void> {
 		this.currentUrl = url;
-		this.currentTitle = title ?? "Feishu Document";
+		this.currentTitle = title ?? this.t("view.defaultTitle");
 		this.currentZoom = options?.zoom ?? 1.0;
 		this.currentCustomCss = options?.customCss ?? "";
 		this.currentHideHeader = options?.hideHeader ?? true;
@@ -99,6 +119,7 @@ export class FeishuDocView extends FileView {
 		return Object.assign(super.getState(), {
 			url: this.currentUrl,
 			title: this.currentTitle,
+			sourcePath: this.currentSourcePath,
 			zoom: this.currentZoom,
 			customCss: this.currentCustomCss,
 			hideHeader: this.currentHideHeader,
@@ -113,6 +134,7 @@ export class FeishuDocView extends FileView {
 
 		const url = state.url as string | undefined;
 		const title = state.title as string | undefined;
+		this.currentSourcePath = state.sourcePath as string | undefined;
 		const zoom = state.zoom as number | undefined;
 		const customCss = state.customCss as string | undefined;
 		const hideHeader = state.hideHeader as boolean | undefined;
@@ -131,6 +153,7 @@ export class FeishuDocView extends FileView {
 	clear(): void {
 		this.currentUrl = undefined;
 		this.currentTitle = undefined;
+		this.currentSourcePath = undefined;
 		this.renderEmptyState();
 	}
 
@@ -164,12 +187,41 @@ export class FeishuDocView extends FileView {
 		}
 	}
 
+	private async syncCurrentFile(): Promise<void> {
+		if (!this.currentSourcePath) {
+			new Notice(this.t("view.noLinkedFile"));
+			return;
+		}
+		if (!this.options.syncSourceFile) {
+			new Notice(this.t("view.syncUnavailable"));
+			return;
+		}
+
+		try {
+			const result = await this.options.syncSourceFile(this.currentSourcePath);
+			if (!result) {
+				new Notice(this.t("view.linkedFileNotFound"));
+				return;
+			}
+
+			this.currentSourcePath = result.file.path;
+			await this.loadFile(result.file);
+			new Notice(result.changed
+				? this.t("notice.syncedFeishuTitle", {name: result.file.name})
+				: this.t("view.titleAlreadyUpToDate"));
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			new Notice(this.t("view.syncFailed", {message: msg}));
+			console.error("[obsidian-feishu] view sync error:", err);
+		}
+	}
+
 	private renderEmptyState(): void {
 		this.contentEl.empty();
 		this.webviewEl = undefined;
 		const container = this.contentEl.createDiv({cls: "feishu-doc-empty"});
 		container.createEl("p", {
-			text: "Open a note with Feishu front matter to view the document here.",
+			text: this.t("view.emptyState"),
 		});
 	}
 
@@ -226,12 +278,26 @@ export class FeishuDocView extends FileView {
 		// @ts-expect-error webview is available in Electron desktop
 		return typeof document?.createElement("webview")?.src !== "undefined";
 	}
+
+	private t(key: TranslationKey, vars?: TranslationVars): string {
+		return this.options.translate?.(key, vars) ?? translate("en", key, vars);
+	}
 }
 
 export interface FrameOptions {
 	zoom?: number;
 	customCss?: string;
 	hideHeader?: boolean;
+}
+
+export interface FeishuDocViewOptions {
+	syncSourceFile?: (sourcePath: string) => Promise<FeishuDocViewSyncResult | null>;
+	translate?: Translator;
+}
+
+export interface FeishuDocViewSyncResult {
+	file: TFile;
+	changed: boolean;
 }
 
 export async function openFeishuView(
@@ -242,6 +308,7 @@ export async function openFeishuView(
 	const state = {
 		url: entry.feishu_url,
 		title: entry.feishu_title,
+		sourcePath: entry.path,
 		zoom: options?.zoom,
 		customCss: options?.customCss,
 		hideHeader: options?.hideHeader,

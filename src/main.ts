@@ -17,9 +17,12 @@ import {
 import {parseFeishuUrl} from "./types";
 import {CreateFeishuDocModal} from "./doc-creator";
 import {syncTitle} from "./title-sync";
-import {ensureBaseFile, BASE_FILE_NAME} from "./base-manager";
+import {fetchFeishuDocumentTitle} from "./lark-cli";
+import {ensureBaseFile, getBaseFilePath} from "./base-manager";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
 import {getLarkMarkdownPathFromViewState, isLarkMarkdownFile} from "./lark-file";
+import {createLarkMarkdownNote} from "./lark-note";
+import {translate, type TranslationKey, type TranslationVars} from "./i18n";
 
 export default class ObsidianFeishuPlugin extends Plugin {
 	settings!: ObsidianFeishuSettings;
@@ -33,38 +36,38 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		// Register custom view
 		this.registerView(
 			FEISHU_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new FeishuDocView(leaf)
+			(leaf: WorkspaceLeaf) => new FeishuDocView(leaf, {
+				syncSourceFile: (sourcePath) => this.syncSourceFile(sourcePath),
+				translate: (key, vars) => this.t(key, vars),
+			})
 		);
 		this.registerLarkMarkdownRouting();
 
 		// Ribbon icons
-		this.addRibbonIcon("globe", "Open Feishu document for current note", () => {
-			void this.openFeishuForActiveFile();
+		this.addRibbonIcon("link", this.t("command.addLinkedFeishuDocument"), () => {
+			new AddLinkedFeishuDocumentModal(this.app, this).open();
 		});
 
-		this.addRibbonIcon("file-plus", "Create Feishu document", () => {
+		this.addRibbonIcon("file-plus", this.t("command.createFeishuDocument"), () => {
 			new CreateFeishuDocModal(this.app, this).open();
 		});
 
-		this.addRibbonIcon("database", "Open Feishu documents base", () => {
+		this.addRibbonIcon("database", this.t("command.openFeishuDocumentsBase"), () => {
 			void this.openBaseFile();
 		});
 
 		// Commands
 		this.addCommand({
-			id: "open-feishu-doc",
-			name: "Open Feishu document for current note",
-			checkCallback: (checking: boolean) => {
-				const file = this.app.workspace.getActiveFile();
-				if (!this.isFeishuMetadataFile(file)) return false;
-				if (!checking) void this.openFeishuForActiveFile();
-				return true;
+			id: "add-linked-feishu-document",
+			name: this.t("command.addLinkedFeishuDocument"),
+			callback: () => {
+				new AddLinkedFeishuDocumentModal(this.app, this).open();
 			},
 		});
 
 		this.addCommand({
 			id: "create-feishu-document",
-			name: "Create Feishu document",
+			name: this.t("command.createFeishuDocument"),
 			callback: () => {
 				new CreateFeishuDocModal(this.app, this).open();
 			},
@@ -72,7 +75,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-feishu-base",
-			name: "Open Feishu documents base",
+			name: this.t("command.openFeishuDocumentsBase"),
 			callback: () => {
 				void this.openBaseFile();
 			},
@@ -80,7 +83,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 
 		this.addCommand({
 			id: "add-feishu-association",
-			name: "Add Feishu association",
+			name: this.t("command.addFeishuAssociation"),
 			checkCallback: (checking: boolean) => {
 				const file = this.app.workspace.getActiveFile();
 				if (!file || file.extension !== "md") return false;
@@ -91,7 +94,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 
 		this.addCommand({
 			id: "remove-feishu-association",
-			name: "Remove Feishu association",
+			name: this.t("command.removeFeishuAssociation"),
 			checkCallback: (checking: boolean) => {
 				const file = this.app.workspace.getActiveFile();
 				if (!file || file.extension !== "md") return false;
@@ -102,7 +105,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 
 		this.addCommand({
 			id: "sync-feishu-title",
-			name: "Sync Feishu title now",
+			name: this.t("command.syncFeishuTitleNow"),
 			checkCallback: (checking: boolean) => {
 				const file = this.app.workspace.getActiveFile();
 				if (!this.isFeishuMetadataFile(file)) return false;
@@ -128,7 +131,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		this.registerBackgroundSync();
 
 		// Ensure Base file exists
-		await ensureBaseFile(this.app);
+		await this.ensureBaseFile();
 	}
 
 	async loadSettings() {
@@ -138,6 +141,10 @@ export default class ObsidianFeishuPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	t(key: TranslationKey, vars?: TranslationVars): string {
+		return translate(this.settings?.language ?? DEFAULT_SETTINGS.language, key, vars);
 	}
 
 	// --- Frame refresh ---
@@ -154,10 +161,15 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	// --- Markdown Shadow File Routing ---
 
 	private registerLarkMarkdownRouting(): void {
-		const originalSetViewState = Object.getOwnPropertyDescriptor(
-			WorkspaceLeaf.prototype,
-			"setViewState"
-		)?.value as WorkspaceLeaf["setViewState"];
+		const workspaceLeafPrototype = WorkspaceLeaf?.prototype;
+		const originalSetViewState = workspaceLeafPrototype
+			? getSetViewStateMethod(workspaceLeafPrototype)
+			: undefined;
+		if (typeof originalSetViewState !== "function") {
+			console.warn("[obsidian-feishu] WorkspaceLeaf.setViewState is unavailable; falling back to file-open routing.");
+			return;
+		}
+
 		const routeLarkMarkdownViewState = (viewState: ViewState) => this.routeLarkMarkdownViewState(viewState);
 
 		const patchedSetViewState: WorkspaceLeaf["setViewState"] = async function (
@@ -169,10 +181,10 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			return await originalSetViewState.call(this, routedState, eState);
 		};
 
-		WorkspaceLeaf.prototype.setViewState = patchedSetViewState;
+		workspaceLeafPrototype.setViewState = patchedSetViewState;
 		this.register(() => {
-			if (WorkspaceLeaf.prototype.setViewState === patchedSetViewState) {
-				WorkspaceLeaf.prototype.setViewState = originalSetViewState;
+			if (workspaceLeafPrototype.setViewState === patchedSetViewState) {
+				workspaceLeafPrototype.setViewState = originalSetViewState;
 			}
 		});
 	}
@@ -190,6 +202,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			state: {
 				url: entry.feishu_url,
 				title: entry.feishu_title,
+				sourcePath: entry.path,
 				zoom: this.settings.frameZoom,
 				customCss: this.settings.frameCustomCss,
 				hideHeader: this.settings.hideFeishuHeader,
@@ -225,19 +238,41 @@ export default class ObsidianFeishuPlugin extends Plugin {
 
 	private async syncTitleForFile(file: TFile): Promise<void> {
 		try {
-			const changed = await syncTitle(this.app, file, {
-				cliPath: this.settings.larkCliPath,
-				syncToFilename: this.settings.syncTitleToFilename,
-			});
+			const changed = await this.syncFile(file, this.settings.syncTitleToFilename);
 			if (changed) {
-				new Notice(`Synced Feishu title for ${file.name}`);
+				new Notice(this.t("notice.syncedFeishuTitle", {name: file.name}));
 			}
 		} catch (err) {
 			console.error("[obsidian-feishu] sync title error:", err);
 		}
 	}
 
+	private async syncSourceFile(sourcePath: string): Promise<{file: TFile; changed: boolean} | null> {
+		const file = this.app.vault.getAbstractFileByPath(sourcePath);
+		if (!(file instanceof TFile)) return null;
+
+		const changed = await this.syncFile(file, true);
+		return {file, changed};
+	}
+
+	private async syncFile(file: TFile, syncToFilename: boolean): Promise<boolean> {
+		return await syncTitle(this.app, file, {
+			cliPath: this.settings.larkCliPath,
+			syncToFilename,
+		});
+	}
+
 	// --- Background Sync ---
+
+	private async ensureBaseFile(): Promise<void> {
+		try {
+			await ensureBaseFile(this.app, this.settings.defaultNoteFolder, (key, vars) => this.t(key, vars));
+		} catch (err) {
+			console.error("[obsidian-feishu] ensure base file error:", err);
+			const message = err instanceof Error ? err.message : String(err);
+			new Notice(this.t("notice.baseCreateFailed", {message}));
+		}
+	}
 
 	private registerBackgroundSync(): void {
 		const minutes = this.settings.syncIntervalMinutes;
@@ -269,30 +304,6 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		}
 	}
 
-	// --- Open Feishu View ---
-
-	private async openFeishuForActiveFile(): Promise<void> {
-		const file = this.app.workspace.getActiveFile();
-		if (!file) {
-			new Notice("No active file.");
-			return;
-		}
-		await this.openFeishuForFile(file);
-	}
-
-	async openFeishuForFile(file: TFile): Promise<void> {
-		const entry = await this.indexer.getEntryByPath(file.path);
-		if (!entry) {
-			new Notice("This note is not associated with a Feishu document.");
-			return;
-		}
-		await openFeishuView(this.app, entry, {
-			zoom: this.settings.frameZoom,
-			customCss: this.settings.frameCustomCss,
-			hideHeader: this.settings.hideFeishuHeader,
-		});
-	}
-
 	private isFeishuMetadataFile(file: TFile | null): file is TFile {
 		return !!file && file.extension === "md";
 	}
@@ -300,11 +311,12 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	// --- Open Base File ---
 
 	private async openBaseFile(): Promise<void> {
-		const file = this.app.vault.getAbstractFileByPath(BASE_FILE_NAME);
+		const basePath = getBaseFilePath(this.settings.defaultNoteFolder);
+		const file = this.app.vault.getAbstractFileByPath(basePath);
 		if (file instanceof TFile) {
 			await this.app.workspace.getLeaf().openFile(file);
 		} else {
-			new Notice(`Base file not found: ${BASE_FILE_NAME}`);
+			new Notice(this.t("notice.baseFileNotFound", {path: basePath}));
 		}
 	}
 
@@ -338,7 +350,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		}
 
 		if (fmStart === -1 || fmEnd === -1) {
-			new Notice("No front matter found.");
+			new Notice(this.t("notice.noFrontMatterFound"));
 			return;
 		}
 
@@ -357,7 +369,114 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			: bodyLines.join("\n");
 
 		await this.app.vault.modify(file, newContent);
-		new Notice(`Removed Feishu association from ${file.name}`);
+		new Notice(this.t("notice.removedAssociation", {name: file.name}));
+	}
+}
+
+function getSetViewStateMethod(prototype: object): WorkspaceLeaf["setViewState"] | undefined {
+	let current: object | null = prototype;
+	while (current) {
+		const descriptor = Object.getOwnPropertyDescriptor(current, "setViewState");
+		if (typeof descriptor?.value === "function") {
+			return descriptor.value as WorkspaceLeaf["setViewState"];
+		}
+		current = Object.getPrototypeOf(current) as object | null;
+	}
+	return undefined;
+}
+
+export class AddLinkedFeishuDocumentModal extends Modal {
+	private plugin: ObsidianFeishuPlugin;
+	private urlInput: HTMLInputElement | undefined;
+	private addBtn: HTMLButtonElement | undefined;
+	private isLoading = false;
+
+	constructor(app: App, plugin: ObsidianFeishuPlugin) {
+		super(app);
+		this.plugin = plugin;
+	}
+
+	onOpen(): void {
+		const {contentEl} = this;
+		contentEl.empty();
+		contentEl.createEl("h2", {text: this.plugin.t("modal.addLinked.title")});
+
+		const urlWrap = contentEl.createDiv();
+		urlWrap.createEl("label", {text: this.plugin.t("modal.feishuUrl.label")});
+		this.urlInput = urlWrap.createEl("input", {
+			cls: "feishu-modal-input",
+			type: "text",
+		});
+		this.urlInput.placeholder = "https://www.feishu.cn/wiki/...";
+
+		const btnContainer = contentEl.createDiv({cls: "modal-button-container"});
+		this.addBtn = btnContainer.createEl("button", {cls: "mod-cta", text: this.plugin.t("button.add")});
+		this.addBtn.addEventListener("click", () => {
+			void this.add();
+		});
+		const cancelBtn = btnContainer.createEl("button", {text: this.plugin.t("button.cancel")});
+		cancelBtn.addEventListener("click", () => this.close());
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
+
+	private async add(): Promise<void> {
+		if (this.isLoading) return;
+
+		const url = this.urlInput?.value.trim() ?? "";
+
+		if (!url) {
+			new Notice(this.plugin.t("notice.enterFeishuUrl"));
+			return;
+		}
+
+		const parsed = parseFeishuUrl(url);
+		if (!parsed) {
+			new Notice(this.plugin.t("notice.invalidFeishuUrl"));
+			return;
+		}
+
+		this.setLoading(true);
+		try {
+			const noteTitle = (await fetchFeishuDocumentTitle(
+				this.plugin.settings.larkCliPath,
+				parsed.docId
+			)).trim();
+			if (!noteTitle) {
+				throw new Error(this.plugin.t("notice.fetchTitleFailed"));
+			}
+			const note = await createLarkMarkdownNote(this.app, {
+				folderPath: this.plugin.settings.defaultNoteFolder,
+				templatePath: this.plugin.settings.noteTemplate,
+				title: noteTitle,
+				docId: parsed.docId,
+				url: parsed.url,
+				translate: (key, vars) => this.plugin.t(key, vars),
+				onTemplateMissing: (path) => new Notice(this.plugin.t("notice.templateNotFound", {path})),
+			});
+			await this.app.workspace.getLeaf().openFile(note);
+			new Notice(this.plugin.t("notice.addedLinkedDocument", {title: noteTitle}));
+			this.close();
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			new Notice(this.plugin.t("notice.addLinkedDocumentFailed", {message: msg}));
+			console.error("[obsidian-feishu] add linked doc error:", err);
+		} finally {
+			this.setLoading(false);
+		}
+	}
+
+	private setLoading(loading: boolean): void {
+		this.isLoading = loading;
+		if (this.addBtn) {
+			this.addBtn.disabled = loading;
+			this.addBtn.textContent = loading ? this.plugin.t("button.adding") : this.plugin.t("button.add");
+		}
+		if (this.urlInput) {
+			this.urlInput.disabled = loading;
+		}
 	}
 }
 
@@ -378,10 +497,10 @@ class AssociationModal extends Modal {
 	onOpen(): void {
 		const {contentEl} = this;
 		contentEl.empty();
-		contentEl.createEl("h2", {text: "Add Feishu association"});
+		contentEl.createEl("h2", {text: this.plugin.t("modal.addAssociation.title")});
 
 		const urlWrap = contentEl.createDiv();
-		urlWrap.createEl("label", {text: "Feishu document URL"});
+		urlWrap.createEl("label", {text: this.plugin.t("modal.feishuUrl.label")});
 		this.urlInput = urlWrap.createEl("input", {
 			cls: "feishu-modal-input",
 			type: "text",
@@ -389,19 +508,19 @@ class AssociationModal extends Modal {
 		this.urlInput.placeholder = "https://www.feishu.cn/docs/...";
 
 		const titleWrap = contentEl.createDiv();
-		titleWrap.createEl("label", {text: "Document title (optional)"});
+		titleWrap.createEl("label", {text: this.plugin.t("modal.documentTitleOptional.label")});
 		this.titleInput = titleWrap.createEl("input", {
 			cls: "feishu-modal-input",
 			type: "text",
 		});
-		this.titleInput.placeholder = "My Feishu doc";
+		this.titleInput.placeholder = this.plugin.t("modal.documentTitleOptional.placeholder");
 
 		const btnContainer = contentEl.createDiv({cls: "modal-button-container"});
-		const saveBtn = btnContainer.createEl("button", {cls: "mod-cta", text: "Save"});
+		const saveBtn = btnContainer.createEl("button", {cls: "mod-cta", text: this.plugin.t("button.save")});
 		saveBtn.addEventListener("click", () => {
 			void this.save();
 		});
-		const cancelBtn = btnContainer.createEl("button", {text: "Cancel"});
+		const cancelBtn = btnContainer.createEl("button", {text: this.plugin.t("button.cancel")});
 		cancelBtn.addEventListener("click", () => this.close());
 	}
 
@@ -414,18 +533,18 @@ class AssociationModal extends Modal {
 		const title = this.titleInput?.value.trim() ?? "";
 
 		if (!url) {
-			new Notice("Please enter a Feishu URL.");
+			new Notice(this.plugin.t("notice.enterFeishuUrl"));
 			return;
 		}
 
 		const parsed = parseFeishuUrl(url);
 		if (!parsed) {
-			new Notice("Invalid Feishu URL.");
+			new Notice(this.plugin.t("notice.invalidFeishuUrl"));
 			return;
 		}
 
 		await this.updateFrontMatter(parsed.docId, parsed.url, title || undefined);
-		new Notice(`Feishu association saved for ${this.file.name}`);
+		new Notice(this.plugin.t("notice.associationSaved", {name: this.file.name}));
 		this.close();
 	}
 

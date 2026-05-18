@@ -2,7 +2,7 @@ import {TFile, normalizePath} from "obsidian";
 import type {App} from "obsidian";
 import {fetchFeishuDocumentTitle} from "./lark-cli";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
-import {getSyncedMarkdownFilename} from "./lark-file";
+import {isLarkMarkdownFile, LARK_MARKDOWN_SUFFIX} from "./lark-file";
 
 export interface TitleSyncOptions {
 	cliPath: string;
@@ -29,23 +29,47 @@ export async function syncTitle(
 		return false;
 	}
 
-	if (!newTitle || newTitle === fm.feishu_title) {
+	if (!newTitle) {
 		return false;
 	}
 
-	await updateFrontMatterTitle(app, file, newTitle);
-
-	if (options.syncToFilename) {
-		const newName = getSyncedMarkdownFilename(file, sanitizeFilename(newTitle));
-		const folder = file.parent?.path ?? "";
-		const newPath = normalizePath(folder ? `${folder}/${newName}` : newName);
-
-		if (newPath !== file.path && !app.vault.getAbstractFileByPath(newPath)) {
-			await app.vault.rename(file, newPath);
-		}
+	const titleChanged = newTitle !== fm.feishu_title;
+	if (titleChanged) {
+		await updateFrontMatterTitle(app, file, newTitle);
 	}
 
+	let filenameChanged = false;
+	if (options.syncToFilename || isLarkMarkdownFile(file)) {
+		filenameChanged = await syncFilenameToTitle(app, file, newTitle);
+	}
+
+	return titleChanged || filenameChanged;
+}
+
+async function syncFilenameToTitle(app: App, file: TFile, title: string): Promise<boolean> {
+	const safeTitle = sanitizeFilename(title);
+	if (!safeTitle) return false;
+
+	const newPath = resolveUniqueSyncedPath(app, file, safeTitle);
+	if (newPath === file.path) return false;
+
+	await app.vault.rename(file, newPath);
 	return true;
+}
+
+function resolveUniqueSyncedPath(app: App, file: TFile, safeTitle: string): string {
+	const suffix = isLarkMarkdownFile(file) ? LARK_MARKDOWN_SUFFIX : `.${file.extension}`;
+	const folder = file.parent?.path ?? "";
+	const basePath = normalizePath(folder ? `${folder}/${safeTitle}` : safeTitle);
+	let candidate = `${basePath}${suffix}`;
+	let index = 1;
+
+	while (candidate !== file.path && app.vault.getAbstractFileByPath(candidate)) {
+		candidate = `${basePath} (${index})${suffix}`;
+		index++;
+	}
+
+	return candidate;
 }
 
 async function updateFrontMatterTitle(

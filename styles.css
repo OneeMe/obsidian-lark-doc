@@ -6,6 +6,10 @@
 	height: 100%;
 }
 
+.workspace-leaf-content[data-type="feishu-doc-view"] .view-header-nav-buttons {
+	display: none;
+}
+
 .feishu-doc-empty {
 	display: flex;
 	align-items: center;
