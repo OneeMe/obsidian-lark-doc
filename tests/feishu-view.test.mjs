@@ -101,6 +101,28 @@ async function loadFeishuViewModule() {
 	};
 }
 
+function installDocumentStub() {
+	const previousDocument = globalThis.document;
+	globalThis.document = {
+		createElement: (tag) => ({
+			tag,
+			src: "",
+			style: {},
+			addClass() {},
+			setAttribute() {},
+			addEventListener() {},
+		}),
+	};
+
+	return () => {
+		if (previousDocument === undefined) {
+			delete globalThis.document;
+		} else {
+			globalThis.document = previousDocument;
+		}
+	};
+}
+
 test("FeishuDocView replaces Obsidian navigation with a sync action", async () => {
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
@@ -125,6 +147,81 @@ test("FeishuDocView replaces Obsidian navigation with a sync action", async () =
 			]
 		);
 	} finally {
+		await cleanup();
+	}
+});
+
+test("openFeishuView includes the source file in Feishu view state", async () => {
+	const {module, cleanup} = await loadFeishuViewModule();
+	try {
+		const calls = [];
+		const activeLeaf = {
+			getViewState: () => ({type: "markdown"}),
+			setViewState: async (state) => {
+				calls.push(state);
+			},
+		};
+		const app = {
+			workspace: {
+				getMostRecentLeaf: () => activeLeaf,
+				getActiveViewOfType: () => null,
+				getLeavesOfType: () => [],
+				getRightLeaf: () => null,
+				revealLeaf: async () => {},
+			},
+		};
+
+		await module.openFeishuView(app, {
+			path: "Feishu/Doc.lark.md",
+			feishu_url: "https://www.feishu.cn/wiki/docabc",
+			feishu_title: "Doc",
+		});
+
+		assert.equal(calls.length, 1);
+		assert.equal(calls[0].type, module.FEISHU_VIEW_TYPE);
+		assert.equal(calls[0].state.file, "Feishu/Doc.lark.md");
+		assert.equal(calls[0].state.sourcePath, "Feishu/Doc.lark.md");
+	} finally {
+		await cleanup();
+	}
+});
+
+test("FeishuDocView setState keeps file identity while loading URL state", async () => {
+	const restoreDocument = installDocumentStub();
+	const {module, cleanup} = await loadFeishuViewModule();
+	try {
+		const superStates = [];
+		const view = new module.FeishuDocView({
+			app: {
+				metadataCache: {getFileCache: () => null},
+				vault: {cachedRead: async () => ""},
+			},
+		});
+		view.leaf = {
+			app: view.app,
+		};
+		const fileViewPrototype = Object.getPrototypeOf(Object.getPrototypeOf(view));
+		const originalSetState = fileViewPrototype.setState;
+		fileViewPrototype.setState = async function (state) {
+			superStates.push(state);
+		};
+
+		try {
+			await view.setState({
+				file: "Feishu/Doc.lark.md",
+				url: "https://www.feishu.cn/wiki/docabc",
+				title: "Doc",
+				sourcePath: "Feishu/Doc.lark.md",
+			}, {});
+		} finally {
+			fileViewPrototype.setState = originalSetState;
+		}
+
+		assert.equal(superStates.length, 1);
+		assert.equal(view.getState().file, "Feishu/Doc.lark.md");
+		assert.equal(view.getState().url, "https://www.feishu.cn/wiki/docabc");
+	} finally {
+		restoreDocument();
 		await cleanup();
 	}
 });

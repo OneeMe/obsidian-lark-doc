@@ -116,7 +116,7 @@ export class FeishuDocView extends FileView {
 	}
 
 	getState(): Record<string, unknown> {
-		return Object.assign(super.getState(), {
+		const state = Object.assign(super.getState(), {
 			url: this.currentUrl,
 			title: this.currentTitle,
 			sourcePath: this.currentSourcePath,
@@ -124,17 +124,21 @@ export class FeishuDocView extends FileView {
 			customCss: this.currentCustomCss,
 			hideHeader: this.currentHideHeader,
 		});
+		if (this.currentSourcePath) {
+			state.file = this.currentSourcePath;
+		}
+		return state;
 	}
 
 	async setState(state: Record<string, unknown>, result: ViewStateResult): Promise<void> {
-		if (typeof state.file === "string") {
+		const filePath = typeof state.file === "string" ? state.file : undefined;
+		if (filePath) {
 			await super.setState(state, result);
-			return;
 		}
 
 		const url = state.url as string | undefined;
 		const title = state.title as string | undefined;
-		this.currentSourcePath = state.sourcePath as string | undefined;
+		this.currentSourcePath = (state.sourcePath as string | undefined) ?? filePath;
 		const zoom = state.zoom as number | undefined;
 		const customCss = state.customCss as string | undefined;
 		const hideHeader = state.hideHeader as boolean | undefined;
@@ -145,7 +149,7 @@ export class FeishuDocView extends FileView {
 				customCss,
 				hideHeader,
 			});
-		} else {
+		} else if (!filePath) {
 			await super.setState(state, result);
 		}
 	}
@@ -306,6 +310,7 @@ export async function openFeishuView(
 	options?: FrameOptions
 ): Promise<void> {
 	const state = {
+		file: entry.path,
 		url: entry.feishu_url,
 		title: entry.feishu_title,
 		sourcePath: entry.path,

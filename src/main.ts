@@ -200,6 +200,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			...viewState,
 			type: FEISHU_VIEW_TYPE,
 			state: {
+				file: entry.path,
 				url: entry.feishu_url,
 				title: entry.feishu_title,
 				sourcePath: entry.path,
