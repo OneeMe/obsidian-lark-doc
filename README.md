@@ -1,90 +1,103 @@
-# Obsidian Sample Plugin
+# Obsidian Lark
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+![Obsidian Lark header](assets/obsidian-lark-header.svg)
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+Obsidian Lark connects local Obsidian notes with Lark / Feishu cloud documents. It keeps a lightweight `.lark.md` file in your vault, opens the linked document in an Obsidian WebView, and can keep the local filename aligned with the remote document title.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+[中文说明](#中文说明) | [English](#english)
 
-## First time developing plugins?
+## 中文说明
 
-Quick starting guide for new plugin devs:
+### 功能
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+- 打开 `.lark.md` 文件时，自动在 Obsidian 内打开对应的 Lark / 飞书文档预览。
+- 同一个 `.lark.md` 文件重复点击时复用已有标签页，行为接近普通 Markdown 文件。
+- 通过 `Add linked Lark document` 输入文档 URL，在默认笔记目录中创建对应的 `.lark.md` 文件。
+- 通过 `Create Lark document` 输入标题，创建远端 Lark / 飞书文档并在本地生成关联文件。
+- 从 Lark / 飞书同步文档标题，并可把标题同步到 Obsidian 文件名。
+- 文件名冲突时自动追加索引后缀，例如 `Product Spec 1.lark.md`。
+- 在默认笔记目录中维护 `Lark Documents.base`，用于集中查看关联文档。
+- 支持插件界面语言配置：自动、English、简体中文。
 
-## Releasing new releases
+### 使用前提
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+- Obsidian Desktop。插件使用 WebView，因此是桌面端插件。
+- 已安装并登录可用的 `lark-cli`。
+- Lark / 飞书文档 URL 需要是 `feishu.cn` 或 `larksuite.com` 的 `docs`、`docx`、`wiki` 链接。
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### 使用方式
 
-## Adding your plugin to the community plugin list
+1. 在插件设置中配置 `Lark CLI path`，默认使用 `lark-cli`。
+2. 设置 `Default note folder`，默认是 `Lark`。新建的关联文件和 `Lark Documents.base` 都会放在这里。
+3. 执行命令 `Add linked Lark document`，输入已有 Lark / 飞书文档 URL。
+4. 插件会读取远端标题，并创建 `标题.lark.md`。
+5. 在 Obsidian 中打开该 `.lark.md` 文件，即可在插件视图中查看远端文档。
+6. 点击视图顶部的同步按钮，可以主动同步远端标题和本地文件名。
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+### 本地文件格式
 
-## How to use
+`.lark.md` 文件只保存关联元数据和一个简短说明，真实内容仍保存在 Lark / 飞书文档中。插件会使用 Front matter 记录文档 ID、URL 和缓存标题。
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### 开发
 
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+```bash
+npm install
+npm run dev
+npm run lint
+npm test
+npm run build
 ```
 
-If you have multiple URLs, you can also do:
+构建后的 Obsidian 插件文件为：
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+- `manifest.json`
+- `main.js`
+- `styles.css`
+
+## English
+
+### Features
+
+- Automatically opens the linked Lark / Feishu document when a `.lark.md` file is opened in Obsidian.
+- Reuses the existing tab for the same `.lark.md` file, matching normal Markdown file behavior.
+- Creates a local `.lark.md` file from an existing document URL through `Add linked Lark document`.
+- Creates a remote Lark / Feishu document and a local linked note through `Create Lark document`.
+- Syncs document titles from Lark / Feishu and can rename the local Obsidian file.
+- Appends an indexed suffix when a synced filename would collide, such as `Product Spec 1.lark.md`.
+- Maintains `Lark Documents.base` in the default note folder for browsing linked documents.
+- Supports configurable UI language: Auto, English, and Simplified Chinese.
+
+### Requirements
+
+- Obsidian Desktop. This plugin uses WebView and is desktop-only.
+- A working authenticated `lark-cli` installation.
+- Supported document URLs are `docs`, `docx`, and `wiki` links on `feishu.cn` or `larksuite.com`.
+
+### Usage
+
+1. Configure `Lark CLI path` in plugin settings. The default is `lark-cli`.
+2. Configure `Default note folder`. The default is `Lark`; linked notes and `Lark Documents.base` are created there.
+3. Run `Add linked Lark document` and paste an existing Lark / Feishu document URL.
+4. The plugin fetches the remote title and creates `Title.lark.md`.
+5. Open the `.lark.md` file in Obsidian to view the remote document inside the plugin view.
+6. Use the sync button in the view header to manually sync the remote title and local filename.
+
+### Local File Format
+
+`.lark.md` files are local proxy notes. They store only metadata and a short explanation; the full content stays in Lark / Feishu. The plugin uses Front matter for the document ID, URL, and cached title.
+
+### Development
+
+```bash
+npm install
+npm run dev
+npm run lint
+npm test
+npm run build
 ```
 
-## API Documentation
+Release assets for Obsidian:
 
-See https://docs.obsidian.md
+- `manifest.json`
+- `main.js`
+- `styles.css`
