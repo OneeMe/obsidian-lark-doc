@@ -47,7 +47,7 @@ async function loadBaseManagerModule() {
 	};
 }
 
-test("ensureBaseFile creates Feishu Documents.base in the default note folder", async () => {
+test("ensureBaseFile creates Lark Documents.base in the default note folder", async () => {
 	const {module, cleanup} = await loadBaseManagerModule();
 	try {
 		const creates = [];
@@ -55,7 +55,7 @@ test("ensureBaseFile creates Feishu Documents.base in the default note folder", 
 			vault: {
 				getAbstractFileByPath: () => null,
 				createFolder: async (path) => {
-					assert.equal(path, "Feishu");
+					assert.equal(path, "Lark");
 				},
 				create: async (path) => {
 					creates.push(path);
@@ -63,22 +63,21 @@ test("ensureBaseFile creates Feishu Documents.base in the default note folder", 
 			},
 		};
 
-		await module.ensureBaseFile(app, "Feishu");
+		await module.ensureBaseFile(app, "Lark");
 
-		assert.deepEqual(creates, ["Feishu/Feishu Documents.base"]);
-		assert.equal(module.getBaseFilePath("Feishu"), "Feishu/Feishu Documents.base");
+		assert.deepEqual(creates, ["Lark/Lark Documents.base"]);
+		assert.equal(module.getBaseFilePath("Lark"), "Lark/Lark Documents.base");
 	} finally {
 		await cleanup();
 	}
 });
 
-test("ensureBaseFile migrates a legacy root base file into the default note folder", async () => {
+test("ensureBaseFile creates a new Lark base without migrating legacy Feishu base files", async () => {
 	const {module, cleanup} = await loadBaseManagerModule();
 	try {
 		const TFile = globalThis.__obsidianFeishuBaseTestTFile;
 		const legacyBase = new TFile();
 		legacyBase.path = "Feishu Documents.base";
-		const renames = [];
 		const creates = [];
 		const app = {
 			vault: {
@@ -87,56 +86,40 @@ test("ensureBaseFile migrates a legacy root base file into the default note fold
 					return null;
 				},
 				createFolder: async (path) => {
-					assert.equal(path, "Feishu");
+					assert.equal(path, "Lark");
 				},
 				create: async (path) => {
 					creates.push(path);
 				},
-				rename: async (file, path) => {
-					renames.push({from: file.path, to: path});
-					file.path = path;
-				},
 			},
 		};
 
-		await module.ensureBaseFile(app, "Feishu");
+		await module.ensureBaseFile(app, "Lark");
 
-		assert.deepEqual(creates, []);
-		assert.deepEqual(renames, [
-			{
-				from: "Feishu Documents.base",
-				to: "Feishu/Feishu Documents.base",
-			},
-		]);
+		assert.deepEqual(creates, ["Lark/Lark Documents.base"]);
 	} finally {
 		await cleanup();
 	}
 });
 
-test("ensureBaseFile falls back to adapter rename when vault rename rejects the base file", async () => {
+test("ensureBaseFile updates existing Lark base content through the adapter", async () => {
 	const {module, cleanup} = await loadBaseManagerModule();
 	try {
-		const TFile = globalThis.__obsidianFeishuBaseTestTFile;
-		const legacyBase = new TFile();
-		legacyBase.path = "Feishu Documents.base";
-		const adapterRenames = [];
+		const writes = [];
 		const app = {
 			vault: {
 				getAbstractFileByPath: (path) => {
-					if (path === "Feishu Documents.base") return legacyBase;
 					if (path === "lark") return {};
 					return null;
 				},
 				createFolder: async () => {
 					throw new Error("createFolder should not run");
 				},
-				rename: async () => {
-					throw new Error("vault rename rejected .base");
-				},
 				adapter: {
-					exists: async (path) => path === "Feishu Documents.base" || path === "lark",
-					rename: async (from, to) => {
-						adapterRenames.push({from, to});
+					exists: async (path) => path === "lark" || path === "lark/Lark Documents.base",
+					read: async () => "filters: 'old_filter'\n",
+					write: async (path, content) => {
+						writes.push({path, content});
 					},
 				},
 			},
@@ -144,12 +127,9 @@ test("ensureBaseFile falls back to adapter rename when vault rename rejects the 
 
 		await module.ensureBaseFile(app, "lark");
 
-		assert.deepEqual(adapterRenames, [
-			{
-				from: "Feishu Documents.base",
-				to: "lark/Feishu Documents.base",
-			},
-		]);
+		assert.equal(writes.length, 1);
+		assert.equal(writes[0].path, "lark/Lark Documents.base");
+		assert.match(writes[0].content, /Lark Title/);
 	} finally {
 		await cleanup();
 	}
@@ -180,7 +160,7 @@ test("ensureBaseFile falls back to adapter write when vault create rejects the b
 		await module.ensureBaseFile(app, "lark");
 
 		assert.equal(writes.length, 1);
-		assert.equal(writes[0].path, "lark/Feishu Documents.base");
+		assert.equal(writes[0].path, "lark/Lark Documents.base");
 		assert.match(writes[0].content, /feishu_doc_id/);
 	} finally {
 		await cleanup();

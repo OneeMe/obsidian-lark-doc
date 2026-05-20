@@ -1,9 +1,9 @@
 {
-	"id": "obsidian-feishu",
-	"name": "Obsidian Feishu",
+	"id": "obsidian-lark",
+	"name": "Obsidian Lark",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Bridge Obsidian vault with Feishu (Lark) documents.",
+	"description": "Bridge your Obsidian vault with Lark and Feishu documents.",
 	"author": "OneeMe",
 	"authorUrl": "https://github.com/OneeMe",
 	"isDesktopOnly": true

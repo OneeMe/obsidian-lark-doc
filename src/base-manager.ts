@@ -1,7 +1,7 @@
 import {App, normalizePath, TFile} from "obsidian";
 import {translate, type Translator} from "./i18n";
 
-export const BASE_FILE_NAME = "Feishu Documents.base";
+export const BASE_FILE_NAME = "Lark Documents.base";
 
 function createBaseContent(t: Translator = (key, vars) => translate("en", key, vars)): string {
 	return `filters: 'feishu_doc_id'
@@ -51,15 +51,6 @@ export async function ensureBaseFile(
 	}
 
 	const folderPath = normalizePath(defaultNoteFolder.trim());
-	const legacyBase = path !== BASE_FILE_NAME
-		? app.vault.getAbstractFileByPath(BASE_FILE_NAME)
-		: null;
-	if (legacyBase instanceof TFile) {
-		await ensureFolder(app, folderPath);
-		await renameBaseFile(app, legacyBase, path);
-		return;
-	}
-
 	await ensureFolder(app, folderPath);
 
 	await createBaseFile(app, path, baseContent);
@@ -89,23 +80,6 @@ async function updateBaseContent(
 	}
 
 	await app.vault.adapter.write(path, baseContent);
-}
-
-async function renameBaseFile(app: App, file: TFile, path: string): Promise<void> {
-	try {
-		await app.vault.rename(file, path);
-		return;
-	} catch (err) {
-		if (await adapterPathExists(app, path)) {
-			return;
-		}
-		try {
-			await app.vault.adapter.rename(file.path, path);
-			return;
-		} catch (adapterErr) {
-			throw combineErrors("rename base file", err, adapterErr);
-		}
-	}
 }
 
 async function createBaseFile(app: App, path: string, baseContent: string): Promise<void> {

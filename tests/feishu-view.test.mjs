@@ -142,7 +142,7 @@ test("FeishuDocView replaces Obsidian navigation with a sync action", async () =
 			[
 				{
 					icon: "refresh-cw",
-					title: "Sync Feishu title and filename",
+					title: "Sync Lark title and filename",
 				},
 			]
 		);

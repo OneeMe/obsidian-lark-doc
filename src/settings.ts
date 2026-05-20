@@ -20,7 +20,7 @@ export interface ObsidianFeishuSettings {
 export const DEFAULT_SETTINGS: ObsidianFeishuSettings = {
 	language: "auto",
 	larkCliPath: "lark-cli",
-	defaultNoteFolder: "Feishu",
+	defaultNoteFolder: "Lark",
 	autoOpenFeishuView: true,
 	syncTitle: true,
 	syncTitleToFilename: false,
@@ -85,10 +85,10 @@ export class FeishuSettingTab extends PluginSettingTab {
 			.setName(t("settings.defaultNoteFolder.name"))
 			.setDesc(t("settings.defaultNoteFolder.desc"))
 			.addText(text => text
-				.setPlaceholder("Feishu")
+				.setPlaceholder("Lark")
 				.setValue(this.plugin.settings.defaultNoteFolder)
 				.onChange(async (value) => {
-					this.plugin.settings.defaultNoteFolder = value.trim() || "Feishu";
+					this.plugin.settings.defaultNoteFolder = value.trim() || "Lark";
 					await this.plugin.saveSettings();
 				}));
 

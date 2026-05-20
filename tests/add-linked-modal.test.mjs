@@ -129,7 +129,7 @@ async function loadMainModule() {
 						loader: "js",
 						contents: `
 							export async function ensureBaseFile() {}
-							export function getBaseFilePath() { return "Feishu Documents.base"; }
+							export function getBaseFilePath() { return "Lark Documents.base"; }
 						`,
 					}));
 					build.onLoad({filter: /^feishu-frontmatter$/, namespace: "obsidian-add-linked-test-stubs"}, () => ({

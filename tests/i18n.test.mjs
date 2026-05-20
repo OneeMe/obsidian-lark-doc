@@ -34,15 +34,15 @@ test("translate resolves configured language and interpolates values", async () 
 
 		assert.equal(
 			module.translate("zh-CN", "command.addLinkedFeishuDocument"),
-			"添加关联飞书文档"
+			"添加关联 Lark 文档"
 		);
 		assert.equal(
 			module.translate("zh-CN", "notice.syncedFeishuTitle", {name: "测试.lark.md"}),
-			"已同步飞书标题：测试.lark.md"
+			"已同步 Lark 标题：测试.lark.md"
 		);
 		assert.equal(
 			module.translate("en", "notice.syncedFeishuTitle", {name: "Test.lark.md"}),
-			"Synced Feishu title for Test.lark.md"
+			"Synced Lark title for Test.lark.md"
 		);
 	} finally {
 		await cleanup();

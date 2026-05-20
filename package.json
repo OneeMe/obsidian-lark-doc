@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-feishu",
+	"name": "obsidian-lark",
 	"version": "1.0.0",
-	"description": "Bridge Obsidian vault with Feishu (Lark) documents.",
+	"description": "Bridge your Obsidian vault with Lark and Feishu documents.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

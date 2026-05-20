@@ -117,7 +117,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		// Settings tab
 		this.addSettingTab(new FeishuSettingTab(this.app, this));
 
-		// Auto-open Feishu view + title sync on file open
+		// Auto-open Lark view + title sync on file open
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
 				// Defer to next frame so Obsidian finishes initializing the MarkdownView
@@ -166,7 +166,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			? getSetViewStateMethod(workspaceLeafPrototype)
 			: undefined;
 		if (typeof originalSetViewState !== "function") {
-			console.warn("[obsidian-feishu] WorkspaceLeaf.setViewState is unavailable; falling back to file-open routing.");
+			console.warn("[obsidian-lark] WorkspaceLeaf.setViewState is unavailable; falling back to file-open routing.");
 			return;
 		}
 
@@ -244,7 +244,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 				new Notice(this.t("notice.syncedFeishuTitle", {name: file.name}));
 			}
 		} catch (err) {
-			console.error("[obsidian-feishu] sync title error:", err);
+			console.error("[obsidian-lark] sync title error:", err);
 		}
 	}
 
@@ -269,7 +269,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		try {
 			await ensureBaseFile(this.app, this.settings.defaultNoteFolder, (key, vars) => this.t(key, vars));
 		} catch (err) {
-			console.error("[obsidian-feishu] ensure base file error:", err);
+			console.error("[obsidian-lark] ensure base file error:", err);
 			const message = err instanceof Error ? err.message : String(err);
 			new Notice(this.t("notice.baseCreateFailed", {message}));
 		}
@@ -463,7 +463,7 @@ export class AddLinkedFeishuDocumentModal extends Modal {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			new Notice(this.plugin.t("notice.addLinkedDocumentFailed", {message: msg}));
-			console.error("[obsidian-feishu] add linked doc error:", err);
+			console.error("[obsidian-lark] add linked doc error:", err);
 		} finally {
 			this.setLoading(false);
 		}

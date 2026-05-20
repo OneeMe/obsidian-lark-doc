@@ -216,7 +216,7 @@ export class FeishuDocView extends FileView {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			new Notice(this.t("view.syncFailed", {message: msg}));
-			console.error("[obsidian-feishu] view sync error:", err);
+			console.error("[obsidian-lark] view sync error:", err);
 		}
 	}
 
