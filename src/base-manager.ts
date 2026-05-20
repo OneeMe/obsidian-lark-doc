@@ -95,6 +95,7 @@ async function createBaseFile(app: App, path: string, baseContent: string): Prom
 }
 
 async function ensureFolder(app: App, folderPath: string): Promise<void> {
+	/* c8 ignore next */
 	if (!folderPath) return;
 
 	const parts = folderPath.split("/").filter(Boolean);

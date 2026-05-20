@@ -7,7 +7,8 @@ import {pathToFileURL} from "node:url";
 import esbuild from "esbuild";
 
 async function loadDocCreatorModule() {
-	const tempDir = await mkdtemp(join(tmpdir(), "obsidian-feishu-doc-creator-test-"));
+	const tempRoot = process.env.NODE_V8_COVERAGE ? process.cwd() : tmpdir();
+	const tempDir = await mkdtemp(join(tempRoot, "obsidian-feishu-doc-creator-test-"));
 	const outfile = join(tempDir, "doc-creator.mjs");
 
 	await esbuild.build({
@@ -15,6 +16,8 @@ async function loadDocCreatorModule() {
 		bundle: true,
 		format: "esm",
 		platform: "node",
+		sourcemap: "inline",
+		sourcesContent: true,
 		outfile,
 		plugins: [
 			{
@@ -89,7 +92,7 @@ async function loadDocCreatorModule() {
 	const imported = await import(pathToFileURL(outfile).href);
 	return {
 		module: imported,
-		cleanup: () => rm(tempDir, {recursive: true, force: true}),
+		cleanup: () => process.env.NODE_V8_COVERAGE ? Promise.resolve() : rm(tempDir, {recursive: true, force: true}),
 	};
 }
 

@@ -7,7 +7,8 @@ import {pathToFileURL} from "node:url";
 import esbuild from "esbuild";
 
 async function loadMainModule() {
-	const tempDir = await mkdtemp(join(tmpdir(), "obsidian-feishu-add-linked-test-"));
+	const tempRoot = process.env.NODE_V8_COVERAGE ? process.cwd() : tmpdir();
+	const tempDir = await mkdtemp(join(tempRoot, "obsidian-feishu-add-linked-test-"));
 	const outfile = join(tempDir, "main.mjs");
 
 	await esbuild.build({
@@ -15,6 +16,8 @@ async function loadMainModule() {
 		bundle: true,
 		format: "esm",
 		platform: "node",
+		sourcemap: "inline",
+		sourcesContent: true,
 		outfile,
 		plugins: [
 			{
@@ -169,7 +172,7 @@ async function loadMainModule() {
 	const imported = await import(pathToFileURL(outfile).href);
 	return {
 		module: imported,
-		cleanup: () => rm(tempDir, {recursive: true, force: true}),
+		cleanup: () => process.env.NODE_V8_COVERAGE ? Promise.resolve() : rm(tempDir, {recursive: true, force: true}),
 	};
 }
 

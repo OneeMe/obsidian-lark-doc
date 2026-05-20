@@ -7,7 +7,8 @@ import {pathToFileURL} from "node:url";
 import esbuild from "esbuild";
 
 async function loadFrontmatterModule() {
-	const tempDir = await mkdtemp(join(tmpdir(), "obsidian-feishu-test-"));
+	const tempRoot = process.env.NODE_V8_COVERAGE ? process.cwd() : tmpdir();
+	const tempDir = await mkdtemp(join(tempRoot, "obsidian-feishu-test-"));
 	const outfile = join(tempDir, "feishu-frontmatter.mjs");
 
 	await esbuild.build({
@@ -15,6 +16,8 @@ async function loadFrontmatterModule() {
 		bundle: true,
 		format: "esm",
 		platform: "node",
+		sourcemap: "inline",
+		sourcesContent: true,
 		outfile,
 		plugins: [
 			{
@@ -39,6 +42,7 @@ async function loadFrontmatterModule() {
 							}
 
 							export function parseYaml(yaml) {
+								if (yaml.includes("THROW")) throw new Error("bad yaml");
 								const result = {};
 								for (const line of yaml.split("\\n")) {
 									const index = line.indexOf(":");
@@ -61,7 +65,7 @@ async function loadFrontmatterModule() {
 	const imported = await import(pathToFileURL(outfile).href);
 	return {
 		module: imported,
-		cleanup: () => rm(tempDir, {recursive: true, force: true}),
+		cleanup: () => process.env.NODE_V8_COVERAGE ? Promise.resolve() : rm(tempDir, {recursive: true, force: true}),
 	};
 }
 
@@ -93,6 +97,46 @@ test("reads Feishu front matter from .lark.md file content when metadata cache i
 			feishu_doc_id: "abc123",
 			feishu_url: "https://my.feishu.cn/wiki/abc123",
 			feishu_title: "Project Plan",
+		});
+	} finally {
+		await cleanup();
+	}
+});
+
+test("reads cached front matter and ignores invalid front matter content", async () => {
+	const {module, cleanup} = await loadFrontmatterModule();
+	try {
+		const file = {extension: "md", path: "Lark/Cached.lark.md"};
+		const app = {
+			metadataCache: {
+				getFileCache: () => ({
+					frontmatter: {
+						feishu_doc_id: " cached ",
+						feishu_url: " https://my.feishu.cn/wiki/cached ",
+						feishu_title: " Cached Title ",
+					},
+				}),
+			},
+			vault: {
+				cachedRead: async () => {
+					throw new Error("cachedRead should not run");
+				},
+			},
+		};
+
+		assert.deepEqual(await module.readFeishuFrontMatter(app, file), {
+			feishu_doc_id: "cached",
+			feishu_url: "https://my.feishu.cn/wiki/cached",
+			feishu_title: "Cached Title",
+		});
+
+		assert.equal(module.parseFeishuFrontMatterContent("plain body"), undefined);
+		assert.equal(module.parseFeishuFrontMatterContent("---\nTHROW\n---"), undefined);
+		assert.equal(module.normalizeFeishuFrontMatter(null), undefined);
+		assert.equal(module.normalizeFeishuFrontMatter({feishu_doc_id: "   ", feishu_url: "   "}), undefined);
+		assert.equal(module.normalizeFeishuFrontMatter({feishu_title: "Only title"}), undefined);
+		assert.deepEqual(module.normalizeFeishuFrontMatter({feishu_doc_id: 123, feishu_url: " url "}), {
+			feishu_url: "url",
 		});
 	} finally {
 		await cleanup();

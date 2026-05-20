@@ -7,7 +7,8 @@ import {pathToFileURL} from "node:url";
 import esbuild from "esbuild";
 
 async function loadFeishuViewModule() {
-	const tempDir = await mkdtemp(join(tmpdir(), "obsidian-feishu-view-test-"));
+	const tempRoot = process.env.NODE_V8_COVERAGE ? process.cwd() : tmpdir();
+	const tempDir = await mkdtemp(join(tempRoot, "obsidian-feishu-view-test-"));
 	const outfile = join(tempDir, "feishu-view.mjs");
 
 	await esbuild.build({
@@ -15,6 +16,8 @@ async function loadFeishuViewModule() {
 		bundle: true,
 		format: "esm",
 		platform: "node",
+		sourcemap: "inline",
+		sourcesContent: true,
 		outfile,
 		plugins: [
 			{
@@ -97,7 +100,7 @@ async function loadFeishuViewModule() {
 	const imported = await import(pathToFileURL(outfile).href);
 	return {
 		module: imported,
-		cleanup: () => rm(tempDir, {recursive: true, force: true}),
+		cleanup: () => process.env.NODE_V8_COVERAGE ? Promise.resolve() : rm(tempDir, {recursive: true, force: true}),
 	};
 }
 

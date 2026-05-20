@@ -7,7 +7,8 @@ import {pathToFileURL} from "node:url";
 import esbuild from "esbuild";
 
 async function loadLarkFileModule() {
-	const tempDir = await mkdtemp(join(tmpdir(), "obsidian-feishu-lark-file-test-"));
+	const tempRoot = process.env.NODE_V8_COVERAGE ? process.cwd() : tmpdir();
+	const tempDir = await mkdtemp(join(tempRoot, "obsidian-feishu-lark-file-test-"));
 	const outfile = join(tempDir, "lark-file.mjs");
 
 	await esbuild.build({
@@ -15,13 +16,15 @@ async function loadLarkFileModule() {
 		bundle: true,
 		format: "esm",
 		platform: "node",
+		sourcemap: "inline",
+		sourcesContent: true,
 		outfile,
 	});
 
 	const imported = await import(pathToFileURL(outfile).href);
 	return {
 		module: imported,
-		cleanup: () => rm(tempDir, {recursive: true, force: true}),
+		cleanup: () => process.env.NODE_V8_COVERAGE ? Promise.resolve() : rm(tempDir, {recursive: true, force: true}),
 	};
 }
 
