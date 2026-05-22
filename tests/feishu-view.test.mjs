@@ -154,7 +154,7 @@ test("FeishuDocView replaces Obsidian navigation with a sync action", async () =
 	}
 });
 
-test("openFeishuView includes the source file in Feishu view state", async () => {
+test("openFeishuView includes the source path without claiming markdown file ownership", async () => {
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
 		const calls = [];
@@ -182,14 +182,112 @@ test("openFeishuView includes the source file in Feishu view state", async () =>
 
 		assert.equal(calls.length, 1);
 		assert.equal(calls[0].type, module.FEISHU_VIEW_TYPE);
-		assert.equal(calls[0].state.file, "Feishu/Doc.lark.md");
 		assert.equal(calls[0].state.sourcePath, "Feishu/Doc.lark.md");
+		assert.equal(calls[0].state.file, undefined);
 	} finally {
 		await cleanup();
 	}
 });
 
-test("FeishuDocView setState keeps file identity while loading URL state", async () => {
+test("openFeishuView reveals an existing leaf for the same source file", async () => {
+	const {module, cleanup} = await loadFeishuViewModule();
+	try {
+		const activeCalls = [];
+		const existingCalls = [];
+		const activeLeaf = {
+			getViewState: () => ({type: "markdown"}),
+			setViewState: async (state) => {
+				activeCalls.push(state);
+			},
+		};
+		const existingLeaf = {
+			getViewState: () => ({
+				type: module.FEISHU_VIEW_TYPE,
+				state: {
+					file: "Feishu/Doc.lark.md",
+					sourcePath: "Feishu/Doc.lark.md",
+				},
+			}),
+			setViewState: async (state) => {
+				existingCalls.push(state);
+			},
+		};
+		const revealedLeaves = [];
+		const app = {
+			workspace: {
+				getMostRecentLeaf: () => activeLeaf,
+				getActiveViewOfType: () => null,
+				getLeavesOfType: (type) => type === module.FEISHU_VIEW_TYPE ? [existingLeaf] : [],
+				getRightLeaf: () => null,
+				revealLeaf: async (leaf) => {
+					revealedLeaves.push(leaf);
+				},
+			},
+		};
+
+		await module.openFeishuView(app, {
+			path: "Feishu/Doc.lark.md",
+			feishu_url: "https://www.feishu.cn/wiki/docabc",
+			feishu_title: "Doc",
+		});
+
+		assert.equal(activeCalls.length, 0);
+		assert.equal(existingCalls.length, 1);
+		assert.equal(existingCalls[0].type, module.FEISHU_VIEW_TYPE);
+		assert.equal(existingCalls[0].state.url, "https://www.feishu.cn/wiki/docabc");
+		assert.deepEqual(revealedLeaves, [existingLeaf]);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("openFeishuView refreshes a deferred existing leaf before revealing it", async () => {
+	const {module, cleanup} = await loadFeishuViewModule();
+	try {
+		const calls = [];
+		const existingLeaf = {
+			getViewState: () => ({
+				type: module.FEISHU_VIEW_TYPE,
+				state: {
+					file: "Feishu/Doc.lark.md",
+					sourcePath: "Feishu/Doc.lark.md",
+				},
+			}),
+			setViewState: async (state) => {
+				assert.equal(state.type, module.FEISHU_VIEW_TYPE);
+				assert.equal(state.state.url, "https://www.feishu.cn/wiki/docabc");
+				calls.push("set");
+			},
+			loadIfDeferred: async () => {
+				calls.push("load");
+			},
+		};
+		const app = {
+			workspace: {
+				getMostRecentLeaf: () => null,
+				getActiveViewOfType: () => null,
+				getLeavesOfType: (type) => type === module.FEISHU_VIEW_TYPE ? [existingLeaf] : [],
+				getRightLeaf: () => null,
+				revealLeaf: async (leaf) => {
+					assert.equal(leaf, existingLeaf);
+					calls.push("reveal");
+				},
+			},
+		};
+
+		await module.openFeishuView(app, {
+			path: "Feishu/Doc.lark.md",
+			feishu_url: "https://www.feishu.cn/wiki/docabc",
+			feishu_title: "Doc",
+		});
+
+		assert.deepEqual(calls, ["set", "load", "reveal"]);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("FeishuDocView setState loads URL state without invoking FileView file loading", async () => {
 	const restoreDocument = installDocumentStub();
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
@@ -220,8 +318,9 @@ test("FeishuDocView setState keeps file identity while loading URL state", async
 			fileViewPrototype.setState = originalSetState;
 		}
 
-		assert.equal(superStates.length, 1);
-		assert.equal(view.getState().file, "Feishu/Doc.lark.md");
+		assert.equal(superStates.length, 0);
+		assert.equal(view.getState().sourcePath, "Feishu/Doc.lark.md");
+		assert.equal(view.getState().file, undefined);
 		assert.equal(view.getState().url, "https://www.feishu.cn/wiki/docabc");
 	} finally {
 		restoreDocument();

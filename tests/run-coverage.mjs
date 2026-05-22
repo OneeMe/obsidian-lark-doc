@@ -123,6 +123,6 @@ async function cleanCoverageTempDirs() {
 	const cwd = resolve(".");
 	const entries = await readdir(cwd, {withFileTypes: true});
 	await Promise.all(entries
-		.filter(entry => entry.isDirectory() && /^obsidian-feishu(?:-.*)?-test-/.test(entry.name))
+		.filter(entry => entry.isDirectory() && /^obsidian-(?:feishu|lark)(?:-.*)?-test-/.test(entry.name))
 		.map(entry => rm(join(cwd, entry.name), {recursive: true, force: true})));
 }

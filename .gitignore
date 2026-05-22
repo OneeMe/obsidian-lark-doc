@@ -10,6 +10,8 @@ node_modules
 coverage
 obsidian-feishu-*-test-*
 obsidian-feishu-test-*
+obsidian-lark-*-test-*
+obsidian-lark-test-*
 
 # Don't include the compiled main.js file in the repo.
 # They should be uploaded to GitHub releases instead.

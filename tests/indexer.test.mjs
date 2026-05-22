@@ -80,6 +80,7 @@ test("FeishuIndexer reads associations and builds normalized index entries", asy
 		assert.equal(await indexer.hasFeishuAssociation(file), false);
 		assert.equal(await indexer.getEntryByPath(file.path), undefined);
 		assert.equal(await indexer.getEntryByPath("Missing.md"), undefined);
+		assert.equal(await indexer.getEntryByPath("Missing.lark.md"), undefined);
 
 		frontMatter = {
 			feishu_url: "https://one.feishu.cn/wiki/docabc?from=share",

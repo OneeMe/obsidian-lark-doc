@@ -2,15 +2,39 @@ import {getFrontMatterInfo, parseYaml} from "obsidian";
 import type {App, TFile} from "obsidian";
 import type {FeishuFrontMatter} from "./types";
 
+function debugLog(message: string, ...data: unknown[]): void {
+	console.debug("[obsidian-lark][debug]", message, ...data);
+}
+
 export async function readFeishuFrontMatter(
 	app: App,
 	file: TFile
 ): Promise<FeishuFrontMatter | undefined> {
 	const cached = normalizeFeishuFrontMatter(app.metadataCache.getFileCache(file)?.frontmatter);
-	if (cached) return cached;
+	if (cached) {
+		if (file.path.endsWith(".lark.md")) {
+			debugLog("readFeishuFrontMatter used metadata cache", {
+				path: file.path,
+				hasUrl: !!cached.feishu_url,
+				url: cached.feishu_url,
+				title: cached.feishu_title,
+			});
+		}
+		return cached;
+	}
 
 	const content = await app.vault.cachedRead(file);
-	return parseFeishuFrontMatterContent(content);
+	const parsed = parseFeishuFrontMatterContent(content);
+	if (file.path.endsWith(".lark.md")) {
+		debugLog("readFeishuFrontMatter parsed file content", {
+			path: file.path,
+			hasFrontMatter: !!parsed,
+			hasUrl: !!parsed?.feishu_url,
+			url: parsed?.feishu_url,
+			title: parsed?.feishu_title,
+		});
+	}
+	return parsed;
 }
 
 export function parseFeishuFrontMatterContent(content: string): FeishuFrontMatter | undefined {

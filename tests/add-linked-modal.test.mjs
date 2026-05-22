@@ -98,6 +98,7 @@ async function loadMainModule() {
 							export class FeishuDocView {}
 							export const FEISHU_VIEW_TYPE = "feishu-doc-view";
 							export async function openFeishuView() {}
+							export function findFeishuLeafForSourcePath() {}
 						`,
 					}));
 					build.onLoad({filter: /^indexer$/, namespace: "obsidian-add-linked-test-stubs"}, () => ({

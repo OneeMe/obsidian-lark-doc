@@ -7,7 +7,12 @@ import {
 	ViewState,
 	WorkspaceLeaf,
 } from "obsidian";
-import {FeishuDocView, FEISHU_VIEW_TYPE, openFeishuView} from "./feishu-view";
+import {
+	FeishuDocView,
+	FEISHU_VIEW_TYPE,
+	findFeishuLeafForSourcePath,
+	openFeishuView,
+} from "./feishu-view";
 import {FeishuIndexer} from "./indexer";
 import {
 	DEFAULT_SETTINGS,
@@ -24,12 +29,38 @@ import {getLarkMarkdownPathFromViewState, isLarkMarkdownFile} from "./lark-file"
 import {createLarkMarkdownNote} from "./lark-note";
 import {translate, type TranslationKey, type TranslationVars} from "./i18n";
 
+function debugLog(message: string, ...data: unknown[]): void {
+	console.debug("[obsidian-lark][debug]", message, ...data);
+}
+
+function describeLeaf(leaf: WorkspaceLeaf): Record<string, unknown> {
+	try {
+		const viewState = leaf.getViewState();
+		return {
+			type: viewState.type,
+			file: viewState.state?.file,
+			sourcePath: viewState.state?.sourcePath,
+			hasUrl: typeof viewState.state?.url === "string",
+		};
+	} catch (err) {
+		return {
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
 export default class ObsidianFeishuPlugin extends Plugin {
 	settings!: ObsidianFeishuSettings;
 	indexer!: FeishuIndexer;
 
 	async onload() {
 		await this.loadSettings();
+		debugLog("plugin onload", {
+			defaultNoteFolder: this.settings.defaultNoteFolder,
+			autoOpenFeishuView: this.settings.autoOpenFeishuView,
+			syncTitle: this.settings.syncTitle,
+			viewType: FEISHU_VIEW_TYPE,
+		});
 
 		this.indexer = new FeishuIndexer(this.app);
 
@@ -42,6 +73,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			})
 		);
 		this.registerLarkMarkdownRouting();
+		debugLog("registered Lark markdown routing");
 
 		// Ribbon icons
 		this.addRibbonIcon("link", this.t("command.addLinkedFeishuDocument"), () => {
@@ -120,6 +152,10 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		// Auto-open Lark view + title sync on file open
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
+				debugLog("workspace file-open event", {
+					path: file?.path,
+					extension: file?.extension,
+				});
 				// Defer to next frame so Obsidian finishes initializing the MarkdownView
 				requestAnimationFrame(() => {
 					void this.onFileOpen(file);
@@ -169,15 +205,37 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			console.warn("[obsidian-lark] WorkspaceLeaf.setViewState is unavailable; falling back to file-open routing.");
 			return;
 		}
+		debugLog("WorkspaceLeaf.setViewState patch installed");
 
-		const routeLarkMarkdownViewState = (viewState: ViewState) => this.routeLarkMarkdownViewState(viewState);
+		const routeLarkMarkdownViewState = (leaf: WorkspaceLeaf, viewState: ViewState) =>
+			this.routeLarkMarkdownViewState(leaf, viewState);
 
 		const patchedSetViewState: WorkspaceLeaf["setViewState"] = async function (
 			this: WorkspaceLeaf,
 			viewState: ViewState,
 			eState?: unknown
 		): Promise<void> {
-			const routedState = await routeLarkMarkdownViewState(viewState);
+			const larkFilePath = getLarkMarkdownPathFromViewState(viewState);
+			if (larkFilePath) {
+				debugLog("setViewState intercepted Lark markdown", {
+					file: larkFilePath,
+					incomingType: viewState.type,
+					leaf: describeLeaf(this),
+				});
+			}
+			const routedState = await routeLarkMarkdownViewState(this, viewState);
+			if (!routedState) {
+				debugLog("setViewState consumed by existing Lark view", {file: larkFilePath});
+				return;
+			}
+			if (larkFilePath) {
+				debugLog("setViewState forwarding routed state", {
+					file: larkFilePath,
+					routedType: routedState.type,
+					hasUrl: typeof routedState.state?.url === "string",
+					url: routedState.state?.url,
+				});
+			}
 			return await originalSetViewState.call(this, routedState, eState);
 		};
 
@@ -189,18 +247,72 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		});
 	}
 
-	private async routeLarkMarkdownViewState(viewState: ViewState): Promise<ViewState> {
+	private async routeLarkMarkdownViewState(
+		leaf: WorkspaceLeaf,
+		viewState: ViewState
+	): Promise<ViewState | null> {
 		const filePath = getLarkMarkdownPathFromViewState(viewState);
 		if (!filePath) return viewState;
 
+		debugLog("routeLarkMarkdownViewState matched file", {
+			filePath,
+			leaf: describeLeaf(leaf),
+		});
 		const entry = await this.indexer.getEntryByPath(filePath);
-		if (!entry) return viewState;
+		if (!entry) {
+			console.warn("[obsidian-lark][debug] routeLarkMarkdownViewState found no index entry", {
+				filePath,
+			});
+			return viewState;
+		}
 
+		const feishuLeaves = this.app.workspace.getLeavesOfType(FEISHU_VIEW_TYPE);
+		const existingLeaf = findFeishuLeafForSourcePath(feishuLeaves, entry.path);
+		debugLog("routeLarkMarkdownViewState resolved entry", {
+			filePath,
+			entryPath: entry.path,
+			url: entry.feishu_url,
+			feishuLeafCount: feishuLeaves.length,
+			existingLeaf: existingLeaf ? describeLeaf(existingLeaf) : null,
+		});
+		if (existingLeaf && existingLeaf !== leaf) {
+			const routedState = this.createLarkMarkdownViewState(viewState, entry);
+			debugLog("routeLarkMarkdownViewState refreshing existing leaf", {
+				filePath,
+				existingLeaf: describeLeaf(existingLeaf),
+				currentLeaf: describeLeaf(leaf),
+			});
+			await existingLeaf.setViewState(routedState);
+			await existingLeaf.loadIfDeferred?.();
+			await this.app.workspace.revealLeaf(existingLeaf);
+			if (leaf.getViewState().type === "empty") {
+				debugLog("routeLarkMarkdownViewState detaching empty click target", {
+					filePath,
+				});
+				leaf.detach();
+			}
+			return null;
+		}
+
+		debugLog("routeLarkMarkdownViewState returning new Feishu view state", {
+			filePath,
+			url: entry.feishu_url,
+		});
+		return this.createLarkMarkdownViewState(viewState, entry);
+	}
+
+	private createLarkMarkdownViewState(
+		viewState: ViewState,
+		entry: {
+			path: string;
+			feishu_url: string;
+			feishu_title?: string;
+		}
+	): ViewState {
 		return {
 			...viewState,
 			type: FEISHU_VIEW_TYPE,
 			state: {
-				file: entry.path,
 				url: entry.feishu_url,
 				title: entry.feishu_title,
 				sourcePath: entry.path,
@@ -214,19 +326,47 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	// --- File Open Handler ---
 
 	private async onFileOpen(file: TFile | null): Promise<void> {
-		if (!file) return;
+		if (!file) {
+			debugLog("onFileOpen skipped null file");
+			return;
+		}
 
-		if (file.extension !== "md") return;
+		if (file.extension !== "md") {
+			debugLog("onFileOpen skipped non-markdown", {
+				path: file.path,
+				extension: file.extension,
+			});
+			return;
+		}
 
 		const entry = await this.indexer.getEntryByPath(file.path);
-		if (!entry) return;
+		if (!entry) {
+			if (isLarkMarkdownFile(file)) {
+				console.warn("[obsidian-lark][debug] onFileOpen found no index entry for Lark markdown", {
+					path: file.path,
+				});
+			}
+			return;
+		}
+		debugLog("onFileOpen resolved entry", {
+			path: file.path,
+			isLarkMarkdown: isLarkMarkdownFile(file),
+			url: entry.feishu_url,
+			autoOpenFeishuView: this.settings.autoOpenFeishuView,
+		});
 
 		if (isLarkMarkdownFile(file) || this.settings.autoOpenFeishuView) {
+			debugLog("onFileOpen opening Feishu view", {
+				path: file.path,
+				url: entry.feishu_url,
+			});
 			await openFeishuView(this.app, entry, {
 				zoom: this.settings.frameZoom,
 				customCss: this.settings.frameCustomCss,
 				hideHeader: this.settings.hideFeishuHeader,
 			});
+		} else {
+			debugLog("onFileOpen skipped auto-open by settings", {path: file.path});
 		}
 
 		if (this.settings.syncTitle) {

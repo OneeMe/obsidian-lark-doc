@@ -5,6 +5,26 @@ import {translate, type TranslationKey, type TranslationVars, type Translator} f
 
 export const FEISHU_VIEW_TYPE = "feishu-doc-view";
 
+function debugLog(message: string, ...data: unknown[]): void {
+	console.debug("[obsidian-lark][debug]", message, ...data);
+}
+
+function describeLeafState(leaf: WorkspaceLeaf): Record<string, unknown> {
+	try {
+		const state = leaf.getViewState();
+		return {
+			type: state.type,
+			file: state.state?.file,
+			sourcePath: state.state?.sourcePath,
+			hasUrl: typeof state.state?.url === "string",
+		};
+	} catch (err) {
+		return {
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
 interface WebviewLike {
 	src: string;
 	style: CSSStyleDeclaration;
@@ -60,6 +80,10 @@ export class FeishuDocView extends FileView {
 	}
 
 	async onOpen(): Promise<void> {
+		debugLog("FeishuDocView.onOpen", {
+			file: this.file?.path,
+			leaf: describeLeafState(this.leaf),
+		});
 		this.contentEl.empty();
 		this.contentEl.addClass("feishu-doc-view");
 
@@ -73,6 +97,7 @@ export class FeishuDocView extends FileView {
 		if (this.file) {
 			await this.loadFile(this.file);
 		} else {
+			debugLog("FeishuDocView.onOpen has no file; rendering empty state");
 			this.renderEmptyState();
 		}
 	}
@@ -85,6 +110,7 @@ export class FeishuDocView extends FileView {
 	 * Called by Obsidian when a file is loaded into this FileView.
 	 */
 	async onLoadFile(file: TFile): Promise<void> {
+		debugLog("FeishuDocView.onLoadFile", {path: file.path});
 		await this.loadFile(file);
 	}
 
@@ -92,20 +118,41 @@ export class FeishuDocView extends FileView {
 		this.currentSourcePath = file.path;
 		const fm = await readFeishuFrontMatter(this.app, file);
 		const url = fm?.feishu_url;
+		debugLog("FeishuDocView.loadFile frontmatter result", {
+			path: file.path,
+			hasFrontMatter: !!fm,
+			hasUrl: !!url,
+			url,
+			title: fm?.feishu_title,
+		});
 		if (url) {
 			this.currentTitle = fm.feishu_title || file.basename;
 			await this.loadUrl(url, this.currentTitle);
 		} else {
+			console.warn("[obsidian-lark][debug] FeishuDocView.loadFile missing feishu_url", {
+				path: file.path,
+				frontmatter: fm,
+			});
 			this.renderEmptyState();
 		}
 	}
 
 	async loadEntry(entry: IndexEntry, options?: FrameOptions): Promise<void> {
+		debugLog("FeishuDocView.loadEntry", {
+			path: entry.path,
+			url: entry.feishu_url,
+			title: entry.feishu_title,
+		});
 		this.currentSourcePath = entry.path;
 		await this.loadUrl(entry.feishu_url, entry.feishu_title ?? entry.feishu_doc_id, options);
 	}
 
 	async loadUrl(url: string, title?: string, options?: FrameOptions): Promise<void> {
+		debugLog("FeishuDocView.loadUrl", {
+			url,
+			title,
+			options,
+		});
 		this.currentUrl = url;
 		this.currentTitle = title ?? this.t("view.defaultTitle");
 		this.currentZoom = options?.zoom ?? 1.0;
@@ -116,7 +163,7 @@ export class FeishuDocView extends FileView {
 	}
 
 	getState(): Record<string, unknown> {
-		const state = Object.assign(super.getState(), {
+		return Object.assign(super.getState(), {
 			url: this.currentUrl,
 			title: this.currentTitle,
 			sourcePath: this.currentSourcePath,
@@ -124,21 +171,22 @@ export class FeishuDocView extends FileView {
 			customCss: this.currentCustomCss,
 			hideHeader: this.currentHideHeader,
 		});
-		if (this.currentSourcePath) {
-			state.file = this.currentSourcePath;
-		}
-		return state;
 	}
 
 	async setState(state: Record<string, unknown>, result: ViewStateResult): Promise<void> {
 		const filePath = typeof state.file === "string" ? state.file : undefined;
-		if (filePath) {
-			await super.setState(state, result);
-		}
+		const sourcePath = (state.sourcePath as string | undefined) ?? filePath;
+		debugLog("FeishuDocView.setState", {
+			file: filePath,
+			sourcePath: state.sourcePath,
+			hasUrl: typeof state.url === "string",
+			url: state.url,
+			title: state.title,
+		});
 
 		const url = state.url as string | undefined;
 		const title = state.title as string | undefined;
-		this.currentSourcePath = (state.sourcePath as string | undefined) ?? filePath;
+		this.currentSourcePath = sourcePath;
 		const zoom = state.zoom as number | undefined;
 		const customCss = state.customCss as string | undefined;
 		const hideHeader = state.hideHeader as boolean | undefined;
@@ -149,7 +197,13 @@ export class FeishuDocView extends FileView {
 				customCss,
 				hideHeader,
 			});
-		} else if (!filePath) {
+		} else if (filePath) {
+			debugLog("FeishuDocView.setState has file but no url; delegating to FileView", {
+				file: filePath,
+			});
+			await super.setState(state, result);
+		} else {
+			debugLog("FeishuDocView.setState has no url or file; delegating to FileView");
 			await super.setState(state, result);
 		}
 	}
@@ -221,6 +275,10 @@ export class FeishuDocView extends FileView {
 	}
 
 	private renderEmptyState(): void {
+		debugLog("FeishuDocView.renderEmptyState", {
+			currentSourcePath: this.currentSourcePath,
+			currentUrl: this.currentUrl,
+		});
 		this.contentEl.empty();
 		this.webviewEl = undefined;
 		const container = this.contentEl.createDiv({cls: "feishu-doc-empty"});
@@ -231,6 +289,7 @@ export class FeishuDocView extends FileView {
 
 	private renderWebview(options?: FrameOptions): void {
 		if (!this.currentUrl) {
+			console.warn("[obsidian-lark][debug] FeishuDocView.renderWebview called without currentUrl");
 			this.renderEmptyState();
 			return;
 		}
@@ -240,6 +299,11 @@ export class FeishuDocView extends FileView {
 
 		// Use webview on desktop, iframe as fallback
 		const useWebview = this.isWebviewAvailable();
+		debugLog("FeishuDocView.renderWebview", {
+			url: this.currentUrl,
+			useWebview,
+			options,
+		});
 		let el: HTMLElement;
 
 		if (useWebview) {
@@ -309,8 +373,13 @@ export async function openFeishuView(
 	entry: IndexEntry,
 	options?: FrameOptions
 ): Promise<void> {
+	debugLog("openFeishuView called", {
+		path: entry.path,
+		url: entry.feishu_url,
+		title: entry.feishu_title,
+		options,
+	});
 	const state = {
-		file: entry.path,
 		url: entry.feishu_url,
 		title: entry.feishu_title,
 		sourcePath: entry.path,
@@ -319,10 +388,33 @@ export async function openFeishuView(
 		hideHeader: options?.hideHeader,
 	};
 
+	const feishuLeaves = app.workspace.getLeavesOfType(FEISHU_VIEW_TYPE);
+	const existingLeaf = findFeishuLeafForSourcePath(feishuLeaves, entry.path);
+	debugLog("openFeishuView leaf scan", {
+		feishuLeafCount: feishuLeaves.length,
+		existingLeaf: existingLeaf ? describeLeafState(existingLeaf) : null,
+	});
+	if (existingLeaf) {
+		debugLog("openFeishuView refreshing existing leaf", {
+			leaf: describeLeafState(existingLeaf),
+			url: entry.feishu_url,
+		});
+		await existingLeaf.setViewState({type: FEISHU_VIEW_TYPE, state});
+		await existingLeaf.loadIfDeferred?.();
+		await app.workspace.revealLeaf(existingLeaf);
+		return;
+	}
+
 	// 1. Active leaf is a markdown view (most common: user clicked a file)
 	// Check view state type first — available before view instance is ready
 	const activeLeaf = app.workspace.getMostRecentLeaf();
+	debugLog("openFeishuView most recent leaf", {
+		leaf: activeLeaf ? describeLeafState(activeLeaf) : null,
+	});
 	if (activeLeaf && activeLeaf.getViewState().type === "markdown") {
+		debugLog("openFeishuView using active markdown leaf", {
+			leaf: describeLeafState(activeLeaf),
+		});
 		await activeLeaf.setViewState({type: FEISHU_VIEW_TYPE, state});
 		return;
 	}
@@ -330,6 +422,9 @@ export async function openFeishuView(
 	// 2. Already in FeishuDocView (switching between Feishu docs)
 	const activeFeishu = app.workspace.getActiveViewOfType(FeishuDocView);
 	if (activeFeishu?.leaf) {
+		debugLog("openFeishuView using active Feishu view leaf", {
+			leaf: describeLeafState(activeFeishu.leaf),
+		});
 		await activeFeishu.leaf.setViewState({type: FEISHU_VIEW_TYPE, state});
 		return;
 	}
@@ -338,15 +433,20 @@ export async function openFeishuView(
 	for (const leaf of app.workspace.getLeavesOfType("markdown")) {
 		const view = leaf.view as MarkdownView;
 		if (view.file?.path === entry.path) {
+			debugLog("openFeishuView converting matching markdown leaf", {
+				leaf: describeLeafState(leaf),
+			});
 			await leaf.setViewState({type: FEISHU_VIEW_TYPE, state});
 			return;
 		}
 	}
 
 	// 4. Reuse existing FeishuDocView leaf elsewhere
-	const leaves = app.workspace.getLeavesOfType(FEISHU_VIEW_TYPE);
-	if (leaves.length > 0) {
-		const leaf = leaves[0]!;
+	if (feishuLeaves.length > 0) {
+		const leaf = feishuLeaves[0]!;
+		debugLog("openFeishuView reusing first Feishu leaf for different source", {
+			leaf: describeLeafState(leaf),
+		});
 		await leaf.setViewState({type: FEISHU_VIEW_TYPE, state});
 		await app.workspace.revealLeaf(leaf);
 		return;
@@ -354,7 +454,23 @@ export async function openFeishuView(
 
 	// 5. Fallback: right sidebar
 	const leaf = app.workspace.getRightLeaf(false);
-	if (!leaf) return;
+	if (!leaf) {
+		console.warn("[obsidian-lark][debug] openFeishuView could not get fallback right leaf");
+		return;
+	}
+	debugLog("openFeishuView using right leaf fallback", {
+		leaf: describeLeafState(leaf),
+	});
 	await leaf.setViewState({type: FEISHU_VIEW_TYPE, active: true, state});
 	await app.workspace.revealLeaf(leaf);
+}
+
+export function findFeishuLeafForSourcePath(
+	leaves: WorkspaceLeaf[],
+	sourcePath: string
+): WorkspaceLeaf | undefined {
+	return leaves.find((leaf) => {
+		const state = leaf.getViewState().state;
+		return state?.sourcePath === sourcePath || state?.file === sourcePath;
+	});
 }
