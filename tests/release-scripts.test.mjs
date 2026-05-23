@@ -151,7 +151,10 @@ test("update-community-plugins inserts a missing plugin entry", async () => {
 
 		assert.equal(result.status, 0, result.stderr);
 		const registry = await readJson(registryPath);
+		const output = await readFile(registryPath, "utf8");
 		assert.equal(registry.at(-1).id, "lark-doc");
+		assert.equal(output.includes('\n  {\n    "id": "lark-doc"'), true);
+		assert.doesNotMatch(output, /\}, \{/);
 	});
 });
 

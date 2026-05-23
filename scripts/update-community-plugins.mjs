@@ -15,10 +15,7 @@ if (plugins.some((plugin) => plugin.id === entry.id)) {
 	process.exit(0);
 }
 
-const compactEntry = JSON.stringify(entry);
-const trimmed = original.trimEnd();
-const withoutClosingBracket = trimmed.replace(/\s*\]\s*$/, "");
-const separator = /\}\s*$/.test(withoutClosingBracket) ? ", " : "";
-writeFileSync(communityPluginsPath, `${withoutClosingBracket}${separator}${compactEntry} ]\n`);
+plugins.push(entry);
+writeFileSync(communityPluginsPath, `${JSON.stringify(plugins, null, 2)}\n`);
 
 console.log(`Added ${entry.id} to ${communityPluginsPath}.`);
