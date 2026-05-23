@@ -6,7 +6,7 @@
 - 严重程度：中
 - 状态：已修复
 - 影响范围：Add linked Lark document、Create Lark document、标题同步等依赖 `lark-cli` 的入口
-- 关联 Commit：6449ee0
+- 关联 Commit：c680ee4
 
 ## 问题描述
 
