@@ -4,7 +4,7 @@ import {extractDocIdFromUrl, normalizeFeishuUrl} from "./types";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
 
 function debugLog(message: string, ...data: unknown[]): void {
-	console.debug("[obsidian-lark][debug]", message, ...data);
+	console.debug("[obsidian-lark-doc][debug]", message, ...data);
 }
 
 export class FeishuIndexer {
@@ -30,7 +30,7 @@ export class FeishuIndexer {
 		const file = this.app.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) {
 			if (isLarkMarkdown) {
-				console.warn("[obsidian-lark][debug] FeishuIndexer path is not a TFile", {
+				console.warn("[obsidian-lark-doc][debug] FeishuIndexer path is not a TFile", {
 					path,
 					value: file,
 				});
@@ -41,7 +41,7 @@ export class FeishuIndexer {
 		const fm = await this.readFrontMatter(file);
 		if (!fm) {
 			if (isLarkMarkdown) {
-				console.warn("[obsidian-lark][debug] FeishuIndexer found no front matter", {path});
+				console.warn("[obsidian-lark-doc][debug] FeishuIndexer found no front matter", {path});
 			}
 			return undefined;
 		}
@@ -51,7 +51,7 @@ export class FeishuIndexer {
 
 		if (!docId || !url) {
 			if (isLarkMarkdown) {
-				console.warn("[obsidian-lark][debug] FeishuIndexer front matter is incomplete", {
+				console.warn("[obsidian-lark-doc][debug] FeishuIndexer front matter is incomplete", {
 					path,
 					docId,
 					url,

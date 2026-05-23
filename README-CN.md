@@ -1,6 +1,6 @@
 # Lark Doc
 
-![Lark Doc 题头图](assets/obsidian-lark-header.png)
+![Lark Doc 题头图](assets/obsidian-lark-doc-header.png)
 
 Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会在 vault 中保留轻量的 `.lark.md` 文件，在 Obsidian WebView 中打开关联的远端文档，并可让本地文件名与远端文档标题保持同步。
 

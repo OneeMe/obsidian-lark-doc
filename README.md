@@ -1,6 +1,6 @@
 # Lark Doc
 
-![Lark Doc header](assets/obsidian-lark-header.png)
+![Lark Doc header](assets/obsidian-lark-doc-header.png)
 
 Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents. It keeps a lightweight `.lark.md` file in your vault, opens the linked document in an Obsidian WebView, and can keep the local filename aligned with the remote document title.
 

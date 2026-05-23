@@ -58,7 +58,7 @@
 
 1. `tests/feishu-view.test.mjs`：覆盖 `openFeishuView()` 在已有同源 Feishu leaf 时刷新已有 leaf state，不改写当前 Markdown leaf，并覆盖 reveal 前会加载 deferred leaf。
 2. `tests/main-routing.test.mjs`：模拟 `WorkspaceLeaf.setViewState` 被 patch 后，重复打开同一个 `*.lark.md` 时刷新并聚焦已有 Feishu leaf、关闭空目标 leaf；同时覆盖首次打开无已有 leaf 时会直接转换成 Feishu view state。
-3. `tests/run-coverage.mjs`：项目更名后把覆盖率临时目录清理规则扩展到 `obsidian-lark-*`。
+3. `tests/run-coverage.mjs`：项目更名后把覆盖率临时目录清理规则扩展到 `obsidian-lark-doc-*`。
 4. `tests/feishu-view.test.mjs`：覆盖 URL state 加载不会调用 `FileView.setState()`，并确认自定义视图 state 只暴露 `sourcePath`，不暴露 `file`。
 
 ## 验证结果

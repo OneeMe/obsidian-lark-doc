@@ -6,7 +6,7 @@ import {translate, type TranslationKey, type TranslationVars, type Translator} f
 export const FEISHU_VIEW_TYPE = "feishu-doc-view";
 
 function debugLog(message: string, ...data: unknown[]): void {
-	console.debug("[obsidian-lark][debug]", message, ...data);
+	console.debug("[obsidian-lark-doc][debug]", message, ...data);
 }
 
 function describeLeafState(leaf: WorkspaceLeaf): Record<string, unknown> {
@@ -129,7 +129,7 @@ export class FeishuDocView extends FileView {
 			this.currentTitle = fm.feishu_title || file.basename;
 			await this.loadUrl(url, this.currentTitle);
 		} else {
-			console.warn("[obsidian-lark][debug] FeishuDocView.loadFile missing feishu_url", {
+			console.warn("[obsidian-lark-doc][debug] FeishuDocView.loadFile missing feishu_url", {
 				path: file.path,
 				frontmatter: fm,
 			});
@@ -270,7 +270,7 @@ export class FeishuDocView extends FileView {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			new Notice(this.t("view.syncFailed", {message: msg}));
-			console.error("[obsidian-lark] view sync error:", err);
+			console.error("[obsidian-lark-doc] view sync error:", err);
 		}
 	}
 
@@ -289,7 +289,7 @@ export class FeishuDocView extends FileView {
 
 	private renderWebview(options?: FrameOptions): void {
 		if (!this.currentUrl) {
-			console.warn("[obsidian-lark][debug] FeishuDocView.renderWebview called without currentUrl");
+			console.warn("[obsidian-lark-doc][debug] FeishuDocView.renderWebview called without currentUrl");
 			this.renderEmptyState();
 			return;
 		}
@@ -455,7 +455,7 @@ export async function openFeishuView(
 	// 5. Fallback: right sidebar
 	const leaf = app.workspace.getRightLeaf(false);
 	if (!leaf) {
-		console.warn("[obsidian-lark][debug] openFeishuView could not get fallback right leaf");
+		console.warn("[obsidian-lark-doc][debug] openFeishuView could not get fallback right leaf");
 		return;
 	}
 	debugLog("openFeishuView using right leaf fallback", {

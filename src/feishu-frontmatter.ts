@@ -3,7 +3,7 @@ import type {App, TFile} from "obsidian";
 import type {FeishuFrontMatter} from "./types";
 
 function debugLog(message: string, ...data: unknown[]): void {
-	console.debug("[obsidian-lark][debug]", message, ...data);
+	console.debug("[obsidian-lark-doc][debug]", message, ...data);
 }
 
 export async function readFeishuFrontMatter(

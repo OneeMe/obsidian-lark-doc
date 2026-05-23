@@ -82,7 +82,7 @@ export class CreateFeishuDocModal extends Modal {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			new Notice(this.plugin.t("notice.createDocumentFailed", {message: msg}));
-			console.error("[obsidian-lark] create doc error:", err);
+			console.error("[obsidian-lark-doc] create doc error:", err);
 		} finally {
 			this.setLoading(false);
 		}

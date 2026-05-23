@@ -30,7 +30,7 @@ import {createLarkMarkdownNote} from "./lark-note";
 import {translate, type TranslationKey, type TranslationVars} from "./i18n";
 
 function debugLog(message: string, ...data: unknown[]): void {
-	console.debug("[obsidian-lark][debug]", message, ...data);
+	console.debug("[obsidian-lark-doc][debug]", message, ...data);
 }
 
 function describeLeaf(leaf: WorkspaceLeaf): Record<string, unknown> {
@@ -202,7 +202,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			? getSetViewStateMethod(workspaceLeafPrototype)
 			: undefined;
 		if (typeof originalSetViewState !== "function") {
-			console.warn("[obsidian-lark] WorkspaceLeaf.setViewState is unavailable; falling back to file-open routing.");
+			console.warn("[obsidian-lark-doc] WorkspaceLeaf.setViewState is unavailable; falling back to file-open routing.");
 			return;
 		}
 		debugLog("WorkspaceLeaf.setViewState patch installed");
@@ -260,7 +260,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		});
 		const entry = await this.indexer.getEntryByPath(filePath);
 		if (!entry) {
-			console.warn("[obsidian-lark][debug] routeLarkMarkdownViewState found no index entry", {
+			console.warn("[obsidian-lark-doc][debug] routeLarkMarkdownViewState found no index entry", {
 				filePath,
 			});
 			return viewState;
@@ -342,7 +342,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		const entry = await this.indexer.getEntryByPath(file.path);
 		if (!entry) {
 			if (isLarkMarkdownFile(file)) {
-				console.warn("[obsidian-lark][debug] onFileOpen found no index entry for Lark markdown", {
+				console.warn("[obsidian-lark-doc][debug] onFileOpen found no index entry for Lark markdown", {
 					path: file.path,
 				});
 			}
@@ -384,7 +384,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 				new Notice(this.t("notice.syncedFeishuTitle", {name: file.name}));
 			}
 		} catch (err) {
-			console.error("[obsidian-lark] sync title error:", err);
+			console.error("[obsidian-lark-doc] sync title error:", err);
 		}
 	}
 
@@ -409,7 +409,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 		try {
 			await ensureBaseFile(this.app, this.settings.defaultNoteFolder, (key, vars) => this.t(key, vars));
 		} catch (err) {
-			console.error("[obsidian-lark] ensure base file error:", err);
+			console.error("[obsidian-lark-doc] ensure base file error:", err);
 			const message = err instanceof Error ? err.message : String(err);
 			new Notice(this.t("notice.baseCreateFailed", {message}));
 		}
@@ -603,7 +603,7 @@ export class AddLinkedFeishuDocumentModal extends Modal {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			new Notice(this.plugin.t("notice.addLinkedDocumentFailed", {message: msg}));
-			console.error("[obsidian-lark] add linked doc error:", err);
+			console.error("[obsidian-lark-doc] add linked doc error:", err);
 		} finally {
 			this.setLoading(false);
 		}

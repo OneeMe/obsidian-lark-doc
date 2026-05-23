@@ -8,7 +8,7 @@ import esbuild from "esbuild";
 
 async function loadMainRoutingModule() {
 	const tempRoot = process.env.NODE_V8_COVERAGE ? process.cwd() : tmpdir();
-	const tempDir = await mkdtemp(join(tempRoot, "obsidian-lark-main-routing-test-"));
+	const tempDir = await mkdtemp(join(tempRoot, "obsidian-lark-doc-main-routing-test-"));
 	const outfile = join(tempDir, "main.mjs");
 
 	await esbuild.build({

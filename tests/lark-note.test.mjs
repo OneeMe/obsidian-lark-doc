@@ -21,13 +21,13 @@ async function loadLarkNoteModule() {
 		outfile,
 		plugins: [
 			{
-				name: "obsidian-lark-note-test-stub",
+				name: "obsidian-lark-doc-note-test-stub",
 				setup(build) {
 					build.onResolve({filter: /^obsidian$/}, () => ({
 						path: "obsidian",
-						namespace: "obsidian-lark-note-test-stub",
+						namespace: "obsidian-lark-doc-note-test-stub",
 					}));
-					build.onLoad({filter: /^obsidian$/, namespace: "obsidian-lark-note-test-stub"}, () => ({
+					build.onLoad({filter: /^obsidian$/, namespace: "obsidian-lark-doc-note-test-stub"}, () => ({
 						loader: "js",
 						contents: `
 							export class TFile {}

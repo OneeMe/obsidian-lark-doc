@@ -25,7 +25,7 @@ export async function syncTitle(
 	try {
 		newTitle = await fetchFeishuDocumentTitle(options.cliPath, docId);
 	} catch (err) {
-		console.error("[obsidian-lark] title sync fetch error:", err);
+		console.error("[obsidian-lark-doc] title sync fetch error:", err);
 		return false;
 	}
 

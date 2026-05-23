@@ -9,18 +9,18 @@ import test from "node:test";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 async function withReleaseFixture(callback) {
-	const dir = await mkdtemp(join(tmpdir(), "obsidian-lark-release-test-"));
+	const dir = await mkdtemp(join(tmpdir(), "obsidian-lark-doc-release-test-"));
 	try {
 		await writeJson(join(dir, "package.json"), {
-			name: "obsidian-lark",
+			name: "obsidian-lark-doc",
 			version: "1.2.3",
 		});
 		await writeJson(join(dir, "package-lock.json"), {
-			name: "obsidian-lark",
+			name: "obsidian-lark-doc",
 			version: "1.2.3",
 			packages: {
 				"": {
-					name: "obsidian-lark",
+					name: "obsidian-lark-doc",
 					version: "1.2.3",
 				},
 			},
@@ -81,8 +81,8 @@ test("validate-release rejects marketplace identifiers that contain Obsidian", a
 	await withReleaseFixture(async (dir) => {
 		const manifestPath = join(dir, "manifest.json");
 		const manifest = await readJson(manifestPath);
-		manifest.id = "obsidian-lark";
-		manifest.name = "Obsidian Lark";
+		manifest.id = "obsidian-lark-doc";
+		manifest.name = "Obsidian Lark Doc";
 		await writeJson(manifestPath, manifest);
 
 		const result = runScript("scripts/validate-release.mjs", [], dir);
@@ -117,7 +117,7 @@ test("changelog-section prints release notes for a version", async () => {
 test("community-entry creates the official plugin catalog entry from manifest metadata", async () => {
 	await withReleaseFixture(async (dir) => {
 		const result = runScript("scripts/community-entry.mjs", [], dir, {
-			GITHUB_REPOSITORY: "OneeMe/obsidian-lark",
+			GITHUB_REPOSITORY: "OneeMe/obsidian-lark-doc",
 		});
 
 		assert.equal(result.status, 0, result.stderr);
@@ -126,7 +126,7 @@ test("community-entry creates the official plugin catalog entry from manifest me
 			name: "Lark Doc",
 			author: "OneeMe",
 			description: "Bridge your vault with Lark and Feishu documents.",
-			repo: "OneeMe/obsidian-lark",
+			repo: "OneeMe/obsidian-lark-doc",
 		});
 	});
 });
@@ -141,7 +141,7 @@ test("update-community-plugins inserts a missing plugin entry", async () => {
 			name: "Lark Doc",
 			author: "OneeMe",
 			description: "Bridge your vault with Lark and Feishu documents.",
-			repo: "OneeMe/obsidian-lark",
+			repo: "OneeMe/obsidian-lark-doc",
 		});
 
 		const result = runScript("scripts/update-community-plugins.mjs", [
