@@ -1,0 +1,106 @@
+name: Submit community plugin
+
+on:
+    workflow_dispatch:
+        inputs:
+            fork_owner:
+                description: "Owner of your obsidian-releases fork. Defaults to this repository owner."
+                required: false
+                default: ""
+
+permissions:
+    contents: read
+
+jobs:
+    submit:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout plugin
+              uses: actions/checkout@v4
+              with:
+                  path: plugin
+
+            - name: Checkout Obsidian community registry
+              uses: actions/checkout@v4
+              with:
+                  repository: obsidianmd/obsidian-releases
+                  path: obsidian-releases
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22.x
+                  cache: "npm"
+                  cache-dependency-path: plugin/package-lock.json
+
+            - name: Validate release metadata
+              working-directory: plugin
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  npm ci
+                  npm run build
+                  npm run release:validate
+                  version="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')).version)")"
+                  gh release view "$version" --repo "${GITHUB_REPOSITORY}"
+
+            - name: Generate community entry
+              working-directory: plugin
+              env:
+                  GITHUB_REPOSITORY: ${{ github.repository }}
+              run: npm run release:community-entry > community-entry.json
+
+            - name: Update community plugin list
+              run: node plugin/scripts/update-community-plugins.mjs obsidian-releases/community-plugins.json plugin/community-entry.json
+
+            - name: Check for registry changes
+              id: changes
+              working-directory: obsidian-releases
+              run: |
+                  if git diff --quiet -- community-plugins.json; then
+                      echo "changed=false" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "changed=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Resolve fork owner
+              if: ${{ steps.changes.outputs.changed == 'true' }}
+              id: fork
+              run: |
+                  fork_owner="${{ inputs.fork_owner }}"
+                  if [ -z "$fork_owner" ]; then
+                      fork_owner="${GITHUB_REPOSITORY_OWNER}"
+                  fi
+                  echo "owner=${fork_owner}" >> "$GITHUB_OUTPUT"
+
+            - name: Create pull request in obsidian-releases
+              if: ${{ steps.changes.outputs.changed == 'true' }}
+              working-directory: obsidian-releases
+              env:
+                  GH_TOKEN: ${{ secrets.OBSIDIAN_RELEASES_TOKEN }}
+                  FORK_OWNER: ${{ steps.fork.outputs.owner }}
+              run: |
+                  if [ -z "$GH_TOKEN" ]; then
+                      echo "Missing OBSIDIAN_RELEASES_TOKEN secret with public_repo access." >&2
+                      exit 1
+                  fi
+
+                  branch="add-lark-doc-plugin"
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git checkout -b "$branch"
+                  git add community-plugins.json
+                  git commit -m "Add Lark Doc plugin"
+
+                  if [ "$FORK_OWNER" = "$GITHUB_REPOSITORY_OWNER" ]; then
+                      gh repo fork obsidianmd/obsidian-releases --clone=false --remote=false || true
+                  else
+                      gh repo fork obsidianmd/obsidian-releases --org "$FORK_OWNER" --clone=false --remote=false || true
+                  fi
+                  git push "https://x-access-token:${GH_TOKEN}@github.com/${FORK_OWNER}/obsidian-releases.git" "$branch" --force
+
+                  gh pr create \
+                      --repo obsidianmd/obsidian-releases \
+                      --base master \
+                      --head "${FORK_OWNER}:${branch}" \
+                      --title "Add Lark Doc plugin" \
+                      --body "Adds Lark Doc to the Obsidian community plugin directory. Release assets are published from https://github.com/${GITHUB_REPOSITORY}/releases."

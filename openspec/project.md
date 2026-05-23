@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Obsidian Lark 是一个 Obsidian 桌面端插件，用于把本地 vault 中的 `.lark.md` 影子文件与 Lark / 飞书云文档关联起来。插件的目标是让用户在 Obsidian 中像打开普通 Markdown 一样打开远端文档，同时保留本地索引、标题同步和 Obsidian Bases 汇总能力。
+Lark Doc 是一个 Obsidian 桌面端插件，用于把本地 vault 中的 `.lark.md` 影子文件与 Lark / 飞书云文档关联起来。插件的目标是让用户在 Obsidian 中像打开普通 Markdown 一样打开远端文档，同时保留本地索引、标题同步和 Obsidian Bases 汇总能力。
 
 ## Tech Stack
 
@@ -47,7 +47,7 @@ Obsidian Lark 是一个 Obsidian 桌面端插件，用于把本地 vault 中的 
 
 ## Domain Context
 
-- Lark 与飞书在产品和域名上并存，插件品牌使用 Obsidian Lark，但仍支持 `feishu.cn` 和 `larksuite.com` 链接。
+- Lark 与飞书在产品和域名上并存，插件品牌使用 Lark Doc，但仍支持 `feishu.cn` 和 `larksuite.com` 链接。
 - Obsidian 普通 Markdown 文件的打开语义是重复点击同一文件时复用已有标签页；`.lark.md` 也必须遵循该体验。
 - 远端文档标题是本地 `.lark.md` 文件名的主要来源，文件名冲突时使用递增索引后缀解决。
 

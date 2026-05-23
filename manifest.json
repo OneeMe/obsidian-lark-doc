@@ -1,6 +1,6 @@
 {
-	"id": "obsidian-lark",
-	"name": "Obsidian Lark",
+	"id": "lark-doc",
+	"name": "Lark Doc",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Bridge your Obsidian vault with Lark and Feishu documents.",

@@ -1,8 +1,8 @@
-# Obsidian Lark
+# Lark Doc
 
-![Obsidian Lark 题头图](assets/obsidian-lark-header.png)
+![Lark Doc 题头图](assets/obsidian-lark-header.png)
 
-Obsidian Lark 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会在 vault 中保留轻量的 `.lark.md` 文件，在 Obsidian WebView 中打开关联的远端文档，并可让本地文件名与远端文档标题保持同步。
+Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会在 vault 中保留轻量的 `.lark.md` 文件，在 Obsidian WebView 中打开关联的远端文档，并可让本地文件名与远端文档标题保持同步。
 
 [English](README.md)
 
@@ -43,6 +43,7 @@ npm install
 npm run dev
 npm run lint
 npm test
+npm run test:coverage
 npm run build
 ```
 
@@ -51,3 +52,5 @@ npm run build
 - `manifest.json`
 - `main.js`
 - `styles.css`
+
+发布流程见 [Release guide](doc/release.md)，变更记录见 [CHANGELOG.md](CHANGELOG.md)。

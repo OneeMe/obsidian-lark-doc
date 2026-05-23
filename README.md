@@ -1,8 +1,8 @@
-# Obsidian Lark
+# Lark Doc
 
-![Obsidian Lark header](assets/obsidian-lark-header.png)
+![Lark Doc header](assets/obsidian-lark-header.png)
 
-Obsidian Lark connects local Obsidian notes with Lark / Feishu cloud documents. It keeps a lightweight `.lark.md` file in your vault, opens the linked document in an Obsidian WebView, and can keep the local filename aligned with the remote document title.
+Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents. It keeps a lightweight `.lark.md` file in your vault, opens the linked document in an Obsidian WebView, and can keep the local filename aligned with the remote document title.
 
 [中文说明](README-CN.md)
 
@@ -43,6 +43,7 @@ npm install
 npm run dev
 npm run lint
 npm test
+npm run test:coverage
 npm run build
 ```
 
@@ -51,3 +52,6 @@ Release assets for Obsidian:
 - `manifest.json`
 - `main.js`
 - `styles.css`
+
+See [Release guide](doc/release.md) for the automated release and community submission workflow.
+Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
