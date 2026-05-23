@@ -1,4 +1,5 @@
 import {spawn} from "child_process";
+import {delimiter, dirname} from "path";
 import type {FeishuDocInfo} from "./types";
 import {getEffectiveLarkCliPath} from "./lark-cli-resolver";
 
@@ -14,7 +15,8 @@ function runCommand(
 	args: string[]
 ): Promise<{stdout: string; stderr: string}> {
 	return new Promise((resolve, reject) => {
-		const proc = spawn(cliPath, args, {shell: false});
+		const env = buildCommandEnv(cliPath);
+		const proc = spawn(cliPath, args, env ? {shell: false, env} : {shell: false});
 		let stdout = "";
 		let stderr = "";
 
@@ -38,6 +40,17 @@ function runCommand(
 			}
 		});
 	});
+}
+
+function buildCommandEnv(cliPath: string): Record<string, string | undefined> | undefined {
+	const cliDir = dirname(cliPath);
+	if (!cliDir || cliDir === ".") return undefined;
+
+	const currentPath = process.env.PATH;
+	return {
+		...process.env,
+		PATH: currentPath ? `${cliDir}${delimiter}${currentPath}` : cliDir,
+	};
 }
 
 /**

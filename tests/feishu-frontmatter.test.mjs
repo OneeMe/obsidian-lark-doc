@@ -74,9 +74,9 @@ test("reads Feishu front matter from .lark.md file content when metadata cache i
 	try {
 		const content = [
 			"---",
-			"feishu_doc_id: abc123",
-			"feishu_url: https://my.feishu.cn/wiki/abc123",
-			"feishu_title: Project Plan",
+			"lark_doc_id: abc123",
+			"lark_url: https://my.feishu.cn/wiki/abc123",
+			"lark_title: Project Plan",
 			"---",
 			"",
 			"Shadow file body",
@@ -94,9 +94,9 @@ test("reads Feishu front matter from .lark.md file content when metadata cache i
 		const frontmatter = await module.readFeishuFrontMatter(app, file);
 
 		assert.deepEqual(frontmatter, {
-			feishu_doc_id: "abc123",
-			feishu_url: "https://my.feishu.cn/wiki/abc123",
-			feishu_title: "Project Plan",
+			lark_doc_id: "abc123",
+			lark_url: "https://my.feishu.cn/wiki/abc123",
+			lark_title: "Project Plan",
 		});
 	} finally {
 		await cleanup();
@@ -111,9 +111,9 @@ test("reads cached front matter and ignores invalid front matter content", async
 			metadataCache: {
 				getFileCache: () => ({
 					frontmatter: {
-						feishu_doc_id: " cached ",
-						feishu_url: " https://my.feishu.cn/wiki/cached ",
-						feishu_title: " Cached Title ",
+						lark_doc_id: " cached ",
+						lark_url: " https://my.feishu.cn/wiki/cached ",
+						lark_title: " Cached Title ",
 					},
 				}),
 			},
@@ -125,18 +125,18 @@ test("reads cached front matter and ignores invalid front matter content", async
 		};
 
 		assert.deepEqual(await module.readFeishuFrontMatter(app, file), {
-			feishu_doc_id: "cached",
-			feishu_url: "https://my.feishu.cn/wiki/cached",
-			feishu_title: "Cached Title",
+			lark_doc_id: "cached",
+			lark_url: "https://my.feishu.cn/wiki/cached",
+			lark_title: "Cached Title",
 		});
 
 		assert.equal(module.parseFeishuFrontMatterContent("plain body"), undefined);
 		assert.equal(module.parseFeishuFrontMatterContent("---\nTHROW\n---"), undefined);
 		assert.equal(module.normalizeFeishuFrontMatter(null), undefined);
-		assert.equal(module.normalizeFeishuFrontMatter({feishu_doc_id: "   ", feishu_url: "   "}), undefined);
-		assert.equal(module.normalizeFeishuFrontMatter({feishu_title: "Only title"}), undefined);
-		assert.deepEqual(module.normalizeFeishuFrontMatter({feishu_doc_id: 123, feishu_url: " url "}), {
-			feishu_url: "url",
+		assert.equal(module.normalizeFeishuFrontMatter({lark_doc_id: "   ", lark_url: "   "}), undefined);
+		assert.equal(module.normalizeFeishuFrontMatter({lark_title: "Only title"}), undefined);
+		assert.deepEqual(module.normalizeFeishuFrontMatter({lark_doc_id: 123, lark_url: " url "}), {
+			lark_url: "url",
 		});
 	} finally {
 		await cleanup();

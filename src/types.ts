@@ -12,11 +12,11 @@ export interface FeishuDocInfo {
  */
 export interface FeishuFrontMatter {
 	/** Feishu document ID (token) */
-	feishu_doc_id?: string;
+	lark_doc_id?: string;
 	/** Full Feishu document URL */
-	feishu_url?: string;
+	lark_url?: string;
 	/** Cached title of the Feishu document */
-	feishu_title?: string;
+	lark_title?: string;
 }
 
 /**
@@ -26,11 +26,11 @@ export interface IndexEntry {
 	/** Vault-relative path to the markdown file */
 	path: string;
 	/** Feishu document ID */
-	feishu_doc_id: string;
+	lark_doc_id: string;
 	/** Feishu document URL */
-	feishu_url: string;
+	lark_url: string;
 	/** Cached title */
-	feishu_title?: string;
+	lark_title?: string;
 	/** Last modified time of the file (timestamp) */
 	mtime: number;
 }

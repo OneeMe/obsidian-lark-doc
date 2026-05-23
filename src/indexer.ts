@@ -46,8 +46,8 @@ export class FeishuIndexer {
 			return undefined;
 		}
 
-		const docId = fm.feishu_doc_id ?? extractDocIdFromUrl(fm.feishu_url ?? "") ?? "";
-		const url = fm.feishu_url ? normalizeFeishuUrl(fm.feishu_url) : "";
+		const docId = fm.lark_doc_id ?? extractDocIdFromUrl(fm.lark_url ?? "") ?? "";
+		const url = fm.lark_url ? normalizeFeishuUrl(fm.lark_url) : "";
 
 		if (!docId || !url) {
 			if (isLarkMarkdown) {
@@ -66,14 +66,14 @@ export class FeishuIndexer {
 				path: file.path,
 				docId,
 				url,
-				title: fm.feishu_title,
+				title: fm.lark_title,
 			});
 		}
 		return {
 			path: file.path,
-			feishu_doc_id: docId,
-			feishu_url: url,
-			feishu_title: fm.feishu_title,
+			lark_doc_id: docId,
+			lark_url: url,
+			lark_title: fm.lark_title,
 			mtime: file.stat.mtime,
 		};
 	}

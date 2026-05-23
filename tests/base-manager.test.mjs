@@ -164,7 +164,7 @@ test("ensureBaseFile falls back to adapter write when vault create rejects the b
 
 		assert.equal(writes.length, 1);
 		assert.equal(writes[0].path, "lark/Lark Documents.base");
-		assert.match(writes[0].content, /feishu_doc_id/);
+		assert.match(writes[0].content, /lark_doc_id/);
 	} finally {
 		await cleanup();
 	}
@@ -191,7 +191,7 @@ test("ensureBaseFile updates existing TFile bases and skips unchanged content", 
 		assert.equal(modifies.length, 1);
 		assert.match(modifies[0], /Lark Title/);
 
-		app.vault.read = async () => "filters: 'feishu_doc_id'\n";
+		app.vault.read = async () => "filters: 'lark_doc_id'\n";
 		await module.ensureBaseFile(app, "Lark");
 		assert.equal(modifies.length, 1);
 	} finally {

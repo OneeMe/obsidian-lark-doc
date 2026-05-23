@@ -78,9 +78,9 @@ test("createLarkMarkdownNote creates a linked .lark.md file in the default note 
 		assert.equal(file.path, "Feishu/Linked Doc (1).lark.md");
 		assert.equal(creates.length, 1);
 		assert.equal(creates[0].path, "Feishu/Linked Doc (1).lark.md");
-		assert.match(creates[0].content, /feishu_doc_id: abc123/);
-		assert.match(creates[0].content, /feishu_url: https:\/\/www\.feishu\.cn\/wiki\/abc123/);
-		assert.match(creates[0].content, /feishu_title: Linked Doc/);
+		assert.match(creates[0].content, /lark_doc_id: abc123/);
+		assert.match(creates[0].content, /lark_url: https:\/\/www\.feishu\.cn\/wiki\/abc123/);
+		assert.match(creates[0].content, /lark_title: Linked Doc/);
 	} finally {
 		await cleanup();
 	}

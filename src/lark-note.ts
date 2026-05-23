@@ -27,9 +27,9 @@ export async function createLarkMarkdownNote(
 	const body = await readTemplateBody(app, options);
 	const frontMatter = [
 		"---",
-		`feishu_doc_id: ${options.docId}`,
-		`feishu_url: ${options.url}`,
-		`feishu_title: ${options.title}`,
+		`lark_doc_id: ${options.docId}`,
+		`lark_url: ${options.url}`,
+		`lark_title: ${options.title}`,
 		"---",
 		"",
 	].join("\n");

@@ -15,9 +15,9 @@ export async function readFeishuFrontMatter(
 		if (file.path.endsWith(".lark.md")) {
 			debugLog("readFeishuFrontMatter used metadata cache", {
 				path: file.path,
-				hasUrl: !!cached.feishu_url,
-				url: cached.feishu_url,
-				title: cached.feishu_title,
+				hasUrl: !!cached.lark_url,
+				url: cached.lark_url,
+				title: cached.lark_title,
 			});
 		}
 		return cached;
@@ -29,9 +29,9 @@ export async function readFeishuFrontMatter(
 		debugLog("readFeishuFrontMatter parsed file content", {
 			path: file.path,
 			hasFrontMatter: !!parsed,
-			hasUrl: !!parsed?.feishu_url,
-			url: parsed?.feishu_url,
-			title: parsed?.feishu_title,
+			hasUrl: !!parsed?.lark_url,
+			url: parsed?.lark_url,
+			title: parsed?.lark_title,
 		});
 	}
 	return parsed;
@@ -54,16 +54,16 @@ export function normalizeFeishuFrontMatter(input: unknown): FeishuFrontMatter | 
 	const fm = input as Record<string, unknown>;
 	const result: FeishuFrontMatter = {};
 
-	const docId = readString(fm.feishu_doc_id);
-	if (docId) result.feishu_doc_id = docId;
+	const docId = readString(fm.lark_doc_id);
+	if (docId) result.lark_doc_id = docId;
 
-	const url = readString(fm.feishu_url);
-	if (url) result.feishu_url = url;
+	const url = readString(fm.lark_url);
+	if (url) result.lark_url = url;
 
-	const title = readString(fm.feishu_title);
-	if (title) result.feishu_title = title;
+	const title = readString(fm.lark_title);
+	if (title) result.lark_title = title;
 
-	return result.feishu_doc_id || result.feishu_url ? result : undefined;
+	return result.lark_doc_id || result.lark_url ? result : undefined;
 }
 
 function readString(value: unknown): string | undefined {

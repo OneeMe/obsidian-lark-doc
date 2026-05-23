@@ -4,24 +4,24 @@ import {translate, type Translator} from "./i18n";
 export const BASE_FILE_NAME = "Lark Documents.base";
 
 function createBaseContent(t: Translator = (key, vars) => translate("en", key, vars)): string {
-	return `filters: 'feishu_doc_id'
+	return `filters: 'lark_doc_id'
 
 properties:
-  feishu_title:
-    displayName: "${t("base.feishuTitle")}"
-  feishu_url:
+  lark_title:
+    displayName: "${t("base.larkTitle")}"
+  lark_url:
     displayName: "${t("base.url")}"
 
 formulas:
-  doc_link: 'link(feishu_url, feishu_title)'
+  doc_link: 'link(lark_url, lark_title)'
 
 views:
   - type: table
     name: "${t("base.allDocuments")}"
     order:
       - file.name
-      - feishu_title
-      - feishu_url
+      - lark_title
+      - lark_url
       - file.mtime
 `;
 }

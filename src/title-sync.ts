@@ -1,7 +1,7 @@
 import {TFile, normalizePath} from "obsidian";
 import type {App} from "obsidian";
 import {fetchFeishuDocumentTitle} from "./lark-cli";
-import {readFeishuFrontMatter} from "./feishu-frontmatter";
+import {parseFeishuFrontMatterContent} from "./feishu-frontmatter";
 import {isLarkMarkdownFile, LARK_MARKDOWN_SUFFIX} from "./lark-file";
 
 export interface TitleSyncOptions {
@@ -14,16 +14,17 @@ export async function syncTitle(
 	file: TFile,
 	options: TitleSyncOptions
 ): Promise<boolean> {
-	const fm = await readFeishuFrontMatter(app, file);
-	if (!fm?.feishu_doc_id) {
+	const content = await app.vault.read(file);
+	const fm = parseFeishuFrontMatterContent(content);
+	if (!fm?.lark_doc_id) {
 		return false;
 	}
 
-	const docId = String(fm.feishu_doc_id);
+	const docId = String(fm.lark_doc_id);
 	let newTitle: string;
 
 	try {
-		newTitle = await fetchFeishuDocumentTitle(options.cliPath, docId);
+		newTitle = (await fetchFeishuDocumentTitle(options.cliPath, docId)).trim();
 	} catch (err) {
 		console.error("[obsidian-lark-doc] title sync fetch error:", err);
 		return false;
@@ -33,9 +34,9 @@ export async function syncTitle(
 		return false;
 	}
 
-	const titleChanged = newTitle !== fm.feishu_title;
+	const titleChanged = newTitle !== fm.lark_title;
 	if (titleChanged) {
-		await updateFrontMatterTitle(app, file, newTitle);
+		await updateFrontMatterTitle(app, file, newTitle, content);
 	}
 
 	let filenameChanged = false;
@@ -75,15 +76,16 @@ function resolveUniqueSyncedPath(app: App, file: TFile, safeTitle: string): stri
 async function updateFrontMatterTitle(
 	app: App,
 	file: TFile,
-	newTitle: string
+	newTitle: string,
+	content: string
 ): Promise<void> {
-	const content = await app.vault.read(file);
 	const lines = content.split("\n");
 
 	let inFm = false;
 	let fmStart = -1;
 	let fmEnd = -1;
 	let titleLine = -1;
+	const titleField = `lark_title: ${stringifyYamlString(newTitle)}`;
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
@@ -97,18 +99,22 @@ async function updateFrontMatterTitle(
 			fmEnd = i;
 			break;
 		}
-		if (inFm && line?.startsWith("feishu_title:")) {
+		if (inFm && line?.startsWith("lark_title:")) {
 			titleLine = i;
 		}
 	}
 
 	if (titleLine >= 0) {
-		lines[titleLine] = `feishu_title: ${newTitle}`;
+		lines[titleLine] = titleField;
 		await app.vault.modify(file, lines.join("\n"));
 	} else if (fmStart >= 0 && fmEnd >= 0) {
-		lines.splice(fmEnd, 0, `feishu_title: ${newTitle}`);
+		lines.splice(fmEnd, 0, titleField);
 		await app.vault.modify(file, lines.join("\n"));
 	}
+}
+
+function stringifyYamlString(value: string): string {
+	return JSON.stringify(value);
 }
 
 function sanitizeFilename(name: string): string {

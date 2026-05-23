@@ -13,6 +13,7 @@ Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents. It ke
 - Creates a local `.lark.md` file from an existing document URL through `Add linked Lark document`.
 - Creates a remote Lark / Feishu document and a local linked note through `Create Lark document`.
 - Syncs document titles from Lark / Feishu and can rename the local Obsidian file.
+- Copies the current Lark / Feishu document link from the preview header.
 - Appends an indexed suffix when a synced filename would collide, such as `Product Spec 1.lark.md`.
 - Maintains `Lark Documents.base` in the default note folder for browsing linked documents.
 - Supports configurable UI language: Auto, English, and Simplified Chinese.
@@ -25,16 +26,16 @@ Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents. It ke
 
 ## Usage
 
-1. Configure `Lark CLI path` in plugin settings. The default is `lark-cli`; use an absolute path if the desktop app cannot find it.
+1. Configure `Lark CLI path` in plugin settings. The default is `lark-cli`; use an absolute path if the desktop app cannot find it. If you use fnm, nvm, or another Node manager, point this setting to the `bin/lark-cli` executable.
 2. Configure `Default note folder`. The default is `Lark`; linked notes and `Lark Documents.base` are created there.
 3. Run `Add linked Lark document` and paste an existing Lark / Feishu document URL.
 4. The plugin fetches the remote title and creates `Title.lark.md`.
 5. Open the `.lark.md` file in Obsidian to view the remote document inside the plugin view.
-6. Use the sync button in the view header to manually sync the remote title and local filename.
+6. Use the sync button in the view header to manually sync the remote title and local filename, or the copy button to copy the remote document link.
 
 ## Local File Format
 
-`.lark.md` files are local proxy notes. They store only metadata and a short explanation; the full content stays in Lark / Feishu. The plugin uses Front matter for the document ID, URL, and cached title.
+`.lark.md` files are local proxy notes. They store only metadata and a short explanation; the full content stays in Lark / Feishu. The plugin uses `lark_doc_id`, `lark_url`, and `lark_title` Front matter fields for the document ID, URL, and cached title.
 
 ## Security and Permissions
 

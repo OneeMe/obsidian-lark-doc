@@ -74,14 +74,19 @@ async function loadFeishuViewModule() {
 									return action;
 								}
 								getState() {
-									return {};
+									return this.file ? {file: this.file.path} : {};
 								}
 								async setState() {}
 							}
 
 							export class MarkdownView {}
-							export class Notice {}
+							export class Notice {
+								constructor(message) {
+									globalThis.__obsidianFeishuViewNotices.push(message);
+								}
+							}
 							export class TFile {}
+							globalThis.__obsidianFeishuViewTFile = TFile;
 
 							export function getFrontMatterInfo() {
 								return {exists: false, frontmatter: ""};
@@ -104,9 +109,14 @@ async function loadFeishuViewModule() {
 	};
 }
 
+function resetNoticeStub() {
+	globalThis.__obsidianFeishuViewNotices = [];
+}
+
 function installDocumentStub() {
 	const previousDocument = globalThis.document;
 	globalThis.document = {
+		documentElement: {lang: "en"},
 		createElement: (tag) => ({
 			tag,
 			src: "",
@@ -126,9 +136,10 @@ function installDocumentStub() {
 	};
 }
 
-test("FeishuDocView replaces Obsidian navigation with a sync action", async () => {
+test("FeishuDocView replaces Obsidian navigation with sync and copy actions", async () => {
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
+		resetNoticeStub();
 		const view = new module.FeishuDocView({
 			app: {
 				metadataCache: {getFileCache: () => null},
@@ -147,14 +158,72 @@ test("FeishuDocView replaces Obsidian navigation with a sync action", async () =
 					icon: "refresh-cw",
 					title: "Sync Lark title and filename",
 				},
+				{
+					icon: "copy",
+					title: "Copy Lark document link",
+				},
 			]
 		);
 	} finally {
+		delete globalThis.__obsidianFeishuViewNotices;
 		await cleanup();
 	}
 });
 
-test("openFeishuView includes the source path without claiming markdown file ownership", async () => {
+test("FeishuDocView copy action copies the current Lark document URL", async () => {
+	const restoreDocument = installDocumentStub();
+	const {module, cleanup} = await loadFeishuViewModule();
+	const previousNavigator = globalThis.navigator;
+	try {
+		resetNoticeStub();
+		let copiedText = "";
+		Object.defineProperty(globalThis, "navigator", {
+			configurable: true,
+			value: {
+				clipboard: {
+					writeText: async (text) => {
+						copiedText = text;
+					},
+				},
+			},
+		});
+		const view = new module.FeishuDocView({
+			app: {
+				metadataCache: {getFileCache: () => null},
+				vault: {cachedRead: async () => ""},
+			},
+		});
+
+		await view.onOpen();
+		await view.setState({
+			url: "https://www.feishu.cn/wiki/docabc",
+			title: "Doc",
+			sourcePath: "Feishu/Doc.lark.md",
+		}, {});
+		const copyAction = view.actions.find((action) => action.icon === "copy");
+		assert.ok(copyAction);
+
+		copyAction.callback();
+		await Promise.resolve();
+
+		assert.equal(copiedText, "https://www.feishu.cn/wiki/docabc");
+		assert.deepEqual(globalThis.__obsidianFeishuViewNotices, ["Copied Lark document link."]);
+	} finally {
+		if (previousNavigator === undefined) {
+			delete globalThis.navigator;
+		} else {
+			Object.defineProperty(globalThis, "navigator", {
+				configurable: true,
+				value: previousNavigator,
+			});
+		}
+		delete globalThis.__obsidianFeishuViewNotices;
+		restoreDocument();
+		await cleanup();
+	}
+});
+
+test("openFeishuView includes file and source path so Obsidian can select the source file", async () => {
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
 		const calls = [];
@@ -176,14 +245,14 @@ test("openFeishuView includes the source path without claiming markdown file own
 
 		await module.openFeishuView(app, {
 			path: "Feishu/Doc.lark.md",
-			feishu_url: "https://www.feishu.cn/wiki/docabc",
-			feishu_title: "Doc",
+			lark_url: "https://www.feishu.cn/wiki/docabc",
+			lark_title: "Doc",
 		});
 
 		assert.equal(calls.length, 1);
 		assert.equal(calls[0].type, module.FEISHU_VIEW_TYPE);
+		assert.equal(calls[0].state.file, "Feishu/Doc.lark.md");
 		assert.equal(calls[0].state.sourcePath, "Feishu/Doc.lark.md");
-		assert.equal(calls[0].state.file, undefined);
 	} finally {
 		await cleanup();
 	}
@@ -227,8 +296,8 @@ test("openFeishuView reveals an existing leaf for the same source file", async (
 
 		await module.openFeishuView(app, {
 			path: "Feishu/Doc.lark.md",
-			feishu_url: "https://www.feishu.cn/wiki/docabc",
-			feishu_title: "Doc",
+			lark_url: "https://www.feishu.cn/wiki/docabc",
+			lark_title: "Doc",
 		});
 
 		assert.equal(activeCalls.length, 0);
@@ -277,8 +346,8 @@ test("openFeishuView refreshes a deferred existing leaf before revealing it", as
 
 		await module.openFeishuView(app, {
 			path: "Feishu/Doc.lark.md",
-			feishu_url: "https://www.feishu.cn/wiki/docabc",
-			feishu_title: "Doc",
+			lark_url: "https://www.feishu.cn/wiki/docabc",
+			lark_title: "Doc",
 		});
 
 		assert.deepEqual(calls, ["set", "load", "reveal"]);
@@ -291,11 +360,17 @@ test("FeishuDocView setState loads URL state without invoking FileView file load
 	const restoreDocument = installDocumentStub();
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
+		const TFile = globalThis.__obsidianFeishuViewTFile;
+		const sourceFile = new TFile();
+		sourceFile.path = "Feishu/Doc.lark.md";
 		const superStates = [];
 		const view = new module.FeishuDocView({
 			app: {
 				metadataCache: {getFileCache: () => null},
-				vault: {cachedRead: async () => ""},
+				vault: {
+					cachedRead: async () => "",
+					getAbstractFileByPath: (path) => path === sourceFile.path ? sourceFile : null,
+				},
 			},
 		});
 		view.leaf = {
@@ -319,8 +394,9 @@ test("FeishuDocView setState loads URL state without invoking FileView file load
 		}
 
 		assert.equal(superStates.length, 0);
+		assert.equal(view.file, sourceFile);
 		assert.equal(view.getState().sourcePath, "Feishu/Doc.lark.md");
-		assert.equal(view.getState().file, undefined);
+		assert.equal(view.getState().file, "Feishu/Doc.lark.md");
 		assert.equal(view.getState().url, "https://www.feishu.cn/wiki/docabc");
 	} finally {
 		restoreDocument();

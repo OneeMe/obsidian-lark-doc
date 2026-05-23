@@ -98,9 +98,9 @@ test("syncTitle renames .lark.md notes to Feishu title with an indexed suffix on
 		};
 		const content = [
 			"---",
-			"feishu_doc_id: abc123",
-			"feishu_url: https://www.feishu.cn/wiki/abc123",
-			"feishu_title: Shared Title",
+			"lark_doc_id: abc123",
+			"lark_url: https://www.feishu.cn/wiki/abc123",
+			"lark_title: Shared Title",
 			"---",
 			"",
 		].join("\n");
@@ -157,8 +157,8 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 		};
 		const content = [
 			"---",
-			"feishu_doc_id: abc123",
-			"feishu_url: https://www.feishu.cn/wiki/abc123",
+			"lark_doc_id: abc123",
+			"lark_url: https://www.feishu.cn/wiki/abc123",
 			"---",
 			"",
 			"Body",
@@ -180,7 +180,7 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 		};
 
 		assert.equal(await module.syncTitle(app, file, {cliPath: "lark-cli", syncToFilename: true}), true);
-		assert.match(modifications[0], /feishu_title: New\/Unsafe:Title/);
+		assert.match(modifications[0], /lark_title: "New\/Unsafe:Title"/);
 		assert.deepEqual(renames, [{from: "Notes/Old.md", to: "Notes/New Unsafe Title.md"}]);
 
 		globalThis.__obsidianFeishuTestTitle = "Replacement";
@@ -189,14 +189,14 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 			vault: {
 				read: async () => [
 					"---",
-					"feishu_doc_id: abc123",
-					"feishu_title: Old",
+					"lark_doc_id: abc123",
+					"lark_title: Old",
 					"---",
 				].join("\n"),
 				cachedRead: async () => [
 					"---",
-					"feishu_doc_id: abc123",
-					"feishu_title: Old",
+					"lark_doc_id: abc123",
+					"lark_title: Old",
 					"---",
 				].join("\n"),
 				modify: async (_file, updated) => modifications.push(updated),
@@ -204,7 +204,7 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 			},
 		};
 		assert.equal(await module.syncTitle(replaceApp, file, {cliPath: "lark-cli", syncToFilename: false}), true);
-		assert.match(modifications[1], /feishu_title: Replacement/);
+		assert.match(modifications[1], /lark_title: "Replacement"/);
 
 		globalThis.__obsidianFeishuTestTitle = "???";
 		const unsafeApp = {
@@ -212,14 +212,14 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 			vault: {
 				read: async () => [
 					"---",
-					"feishu_doc_id: abc123",
-					"feishu_title: ???",
+					"lark_doc_id: abc123",
+					"lark_title: ???",
 					"---",
 				].join("\n"),
 				cachedRead: async () => [
 					"---",
-					"feishu_doc_id: abc123",
-					"feishu_title: ???",
+					"lark_doc_id: abc123",
+					"lark_title: ???",
 					"---",
 				].join("\n"),
 				getAbstractFileByPath: () => null,
@@ -235,13 +235,14 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 		};
 		const sameContent = [
 			"---",
-			"feishu_doc_id: abc123",
-			"feishu_title: Same",
+			"lark_doc_id: abc123",
+			"lark_title: Same",
 			"---",
 		].join("\n");
 		const sameApp = {
 			metadataCache: {getFileCache: () => null},
 			vault: {
+				read: async () => sameContent,
 				cachedRead: async () => sameContent,
 				getAbstractFileByPath: () => null,
 			},
@@ -256,8 +257,8 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 		const rootRenames = [];
 		const rootContent = [
 			"---",
-			"feishu_doc_id: abc123",
-			"feishu_title: Old",
+			"lark_doc_id: abc123",
+			"lark_title: Old",
 			"---",
 		].join("\n");
 		const rootApp = {
@@ -282,10 +283,62 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 		const noFrontMatterApp = {
 			metadataCache: {getFileCache: () => null},
 			vault: {
+				read: async () => "No front matter",
 				cachedRead: async () => "No front matter",
 			},
 		};
 		assert.equal(await module.syncTitle(noFrontMatterApp, file, {cliPath: "lark-cli", syncToFilename: true}), false);
+	} finally {
+		globalThis.__obsidianFeishuTestTitle = previousTitle;
+		await cleanup();
+	}
+});
+
+test("syncTitle writes the title from file content even when metadata cache is stale", async () => {
+	const {module, cleanup} = await loadTitleSyncModule();
+	const previousTitle = globalThis.__obsidianFeishuTestTitle;
+	try {
+		globalThis.__obsidianFeishuTestTitle = "Remote: Synced Title";
+		const file = {
+			extension: "md",
+			path: "Lark/Old Local.lark.md",
+			parent: {path: "Lark"},
+		};
+		const content = [
+			"---",
+			"lark_doc_id: abc123",
+			"lark_url: https://www.feishu.cn/wiki/abc123",
+			"lark_title: Old Local",
+			"---",
+			"",
+		].join("\n");
+		const modifications = [];
+		const renames = [];
+		const app = {
+			metadataCache: {
+				getFileCache: () => ({
+					frontmatter: {
+						lark_doc_id: "abc123",
+						lark_url: "https://www.feishu.cn/wiki/abc123",
+						lark_title: "Remote: Synced Title",
+					},
+				}),
+			},
+			vault: {
+				read: async () => content,
+				cachedRead: async () => content,
+				modify: async (_file, updated) => modifications.push(updated),
+				getAbstractFileByPath: () => null,
+				rename: async (targetFile, newPath) => {
+					renames.push({from: targetFile.path, to: newPath});
+					targetFile.path = newPath;
+				},
+			},
+		};
+
+		assert.equal(await module.syncTitle(app, file, {cliPath: "lark-cli", syncToFilename: true}), true);
+		assert.match(modifications[0], /lark_title: "Remote: Synced Title"/);
+		assert.deepEqual(renames, [{from: "Lark/Old Local.lark.md", to: "Lark/Remote  Synced Title.lark.md"}]);
 	} finally {
 		globalThis.__obsidianFeishuTestTitle = previousTitle;
 		await cleanup();
@@ -306,13 +359,14 @@ test("syncTitle returns false when the title fetch fails", async () => {
 		};
 		const content = [
 			"---",
-			"feishu_doc_id: abc123",
-			"feishu_title: Old",
+			"lark_doc_id: abc123",
+			"lark_title: Old",
 			"---",
 		].join("\n");
 		const app = {
 			metadataCache: {getFileCache: () => null},
 			vault: {
+				read: async () => content,
 				cachedRead: async () => content,
 			},
 		};

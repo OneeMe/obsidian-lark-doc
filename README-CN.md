@@ -13,6 +13,7 @@ Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会�
 - 通过 `Add linked Lark document` 输入文档 URL，在默认笔记目录中创建对应的 `.lark.md` 文件。
 - 通过 `Create Lark document` 输入标题，创建远端 Lark / 飞书文档并在本地生成关联文件。
 - 从 Lark / 飞书同步文档标题，并可把标题同步到 Obsidian 文件名。
+- 可在预览视图顶部复制当前 Lark / 飞书文档链接。
 - 文件名冲突时自动追加索引后缀，例如 `Product Spec 1.lark.md`。
 - 在默认笔记目录中维护 `Lark Documents.base`，用于集中查看关联文档。
 - 支持插件界面语言配置：自动、English、简体中文。
@@ -25,16 +26,16 @@ Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会�
 
 ## 使用方式
 
-1. 在插件设置中配置 `Lark CLI path`，默认使用 `lark-cli`；如果桌面端无法找到它，请填写绝对路径。
+1. 在插件设置中配置 `Lark CLI path`，默认使用 `lark-cli`；如果桌面端无法找到它，请填写绝对路径。如果你使用 fnm、nvm 或其他 Node 管理工具，请指向 `bin/lark-cli` 可执行文件。
 2. 设置 `Default note folder`，默认是 `Lark`。新建的关联文件和 `Lark Documents.base` 都会放在这里。
 3. 执行命令 `Add linked Lark document`，输入已有 Lark / 飞书文档 URL。
 4. 插件会读取远端标题，并创建 `标题.lark.md`。
 5. 在 Obsidian 中打开该 `.lark.md` 文件，即可在插件视图中查看远端文档。
-6. 点击视图顶部的同步按钮，可以主动同步远端标题和本地文件名。
+6. 点击视图顶部的同步按钮，可以主动同步远端标题和本地文件名；点击复制按钮可以复制远端文档链接。
 
 ## 本地文件格式
 
-`.lark.md` 文件只保存关联元数据和一个简短说明，真实内容仍保存在 Lark / 飞书文档中。插件会使用 Front matter 记录文档 ID、URL 和缓存标题。
+`.lark.md` 文件只保存关联元数据和一个简短说明，真实内容仍保存在 Lark / 飞书文档中。插件会使用 `lark_doc_id`、`lark_url` 和 `lark_title` 这三个 Front matter 字段记录文档 ID、URL 和缓存标题。
 
 ## 安全与权限说明
 

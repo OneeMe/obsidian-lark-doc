@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Added a preview header action to copy the current Lark / Feishu document link.
+
+### Changed
+
+- Renamed generated `.lark.md` metadata and `Lark Documents.base` columns from `feishu_*` to `lark_*`.
+
+### Fixed
+
+- Fixed Lark WebView tabs so Obsidian can keep the linked `.lark.md` file selected in the file explorer.
+- Fixed title sync so the sync button writes the remote title back to the actual `.lark.md` file even when Obsidian metadata cache is stale.
+- Fixed `lark-cli` launch failures when the configured CLI path needs `node` from the same executable directory.
+
 ## [1.0.2] - 2026-05-23
 
 ### Changed

@@ -112,8 +112,10 @@ test("createFeishuDocument parses successful CLI responses and fallbacks", async
 			"--title", "Input Title",
 		]);
 		assert.equal(globalThis.__larkCliSpawnCalls[0].cliPath, "/resolved/lark-cli");
-		assert.deepEqual(globalThis.__larkCliSpawnCalls[0].options, {shell: false});
+		assert.equal(globalThis.__larkCliSpawnCalls[0].options.shell, false);
+		assert.ok(globalThis.__larkCliSpawnCalls[0].options.env.PATH.startsWith("/resolved:"));
 
+		globalThis.__larkCliEffectivePath = "lark-cli";
 		globalThis.__larkCliSpawnQueue.push({
 			stdout: JSON.stringify({node_token: "wikfallback"}),
 		});
@@ -127,6 +129,44 @@ test("createFeishuDocument parses successful CLI responses and fallbacks", async
 		);
 		assert.deepEqual(globalThis.__larkCliSpawnCalls[1].options, {shell: false});
 	} finally {
+		await cleanup();
+	}
+});
+
+test("createFeishuDocument prepends the resolved CLI directory to PATH", async () => {
+	const {module, cleanup} = await loadLarkCliModule();
+	const previousPath = process.env.PATH;
+	try {
+		process.env.PATH = "/usr/bin:/bin";
+		resetLarkCliStubs();
+		globalThis.__larkCliEffectivePath = "/Users/test/.local/state/fnm/bin/lark-cli";
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({node_token: "wikpath"}),
+		});
+
+		await module.createFeishuDocument("lark-cli", "Path Title", "tenant.feishu.cn");
+
+		assert.equal(globalThis.__larkCliSpawnCalls[0].options.shell, false);
+		assert.equal(
+			globalThis.__larkCliSpawnCalls[0].options.env.PATH,
+			"/Users/test/.local/state/fnm/bin:/usr/bin:/bin"
+		);
+
+		delete process.env.PATH;
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({node_token: "wikpath2"}),
+		});
+		await module.createFeishuDocument("lark-cli", "Path Title 2", "tenant.feishu.cn");
+		assert.equal(
+			globalThis.__larkCliSpawnCalls[1].options.env.PATH,
+			"/Users/test/.local/state/fnm/bin"
+		);
+	} finally {
+		if (previousPath === undefined) {
+			delete process.env.PATH;
+		} else {
+			process.env.PATH = previousPath;
+		}
 		await cleanup();
 	}
 });

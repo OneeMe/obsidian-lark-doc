@@ -83,33 +83,33 @@ test("FeishuIndexer reads associations and builds normalized index entries", asy
 		assert.equal(await indexer.getEntryByPath("Missing.lark.md"), undefined);
 
 		frontMatter = {
-			feishu_url: "https://one.feishu.cn/wiki/docabc?from=share",
-			feishu_title: "Remote Title",
+			lark_url: "https://one.feishu.cn/wiki/docabc?from=share",
+			lark_title: "Remote Title",
 		};
 		assert.equal(await indexer.hasFeishuAssociation(file), true);
 		assert.deepEqual(await indexer.getEntryByPath(file.path), {
 			path: "Lark/Doc.lark.md",
-			feishu_doc_id: "docabc",
-			feishu_url: "https://one.feishu.cn/wiki/docabc",
-			feishu_title: "Remote Title",
+			lark_doc_id: "docabc",
+			lark_url: "https://one.feishu.cn/wiki/docabc",
+			lark_title: "Remote Title",
 			mtime: 123,
 		});
 
 		frontMatter = {
-			feishu_doc_id: "explicit",
-			feishu_url: "https://one.feishu.cn/wiki/docabc?from=share",
+			lark_doc_id: "explicit",
+			lark_url: "https://one.feishu.cn/wiki/docabc?from=share",
 		};
 		assert.deepEqual(await indexer.getEntryByPath(file.path), {
 			path: "Lark/Doc.lark.md",
-			feishu_doc_id: "explicit",
-			feishu_url: "https://one.feishu.cn/wiki/docabc",
-			feishu_title: undefined,
+			lark_doc_id: "explicit",
+			lark_url: "https://one.feishu.cn/wiki/docabc",
+			lark_title: undefined,
 			mtime: 123,
 		});
 
 		frontMatter = {
-			feishu_doc_id: "",
-			feishu_url: "",
+			lark_doc_id: "",
+			lark_url: "",
 		};
 		assert.equal(await indexer.getEntryByPath(file.path), undefined);
 

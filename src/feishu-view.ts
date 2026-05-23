@@ -58,6 +58,7 @@ export class FeishuDocView extends FileView {
 	private zoomLevel = 1.0;
 	private cssKey: string | undefined;
 	private syncActionEl: HTMLElement | undefined;
+	private copyActionEl: HTMLElement | undefined;
 	private options: FeishuDocViewOptions;
 
 	constructor(leaf: WorkspaceLeaf, options: FeishuDocViewOptions = {}) {
@@ -92,6 +93,11 @@ export class FeishuDocView extends FileView {
 				void this.syncCurrentFile();
 			});
 		}
+		if (!this.copyActionEl) {
+			this.copyActionEl = this.addAction("copy", this.t("view.copyLinkAction"), () => {
+				void this.copyCurrentUrl();
+			});
+		}
 
 		// FileView sets this.file before onOpen runs; load it now.
 		if (this.file) {
@@ -117,19 +123,19 @@ export class FeishuDocView extends FileView {
 	private async loadFile(file: TFile): Promise<void> {
 		this.currentSourcePath = file.path;
 		const fm = await readFeishuFrontMatter(this.app, file);
-		const url = fm?.feishu_url;
+		const url = fm?.lark_url;
 		debugLog("FeishuDocView.loadFile frontmatter result", {
 			path: file.path,
 			hasFrontMatter: !!fm,
 			hasUrl: !!url,
 			url,
-			title: fm?.feishu_title,
+			title: fm?.lark_title,
 		});
 		if (url) {
-			this.currentTitle = fm.feishu_title || file.basename;
+			this.currentTitle = fm.lark_title || file.basename;
 			await this.loadUrl(url, this.currentTitle);
 		} else {
-			console.warn("[obsidian-lark-doc][debug] FeishuDocView.loadFile missing feishu_url", {
+			console.warn("[obsidian-lark-doc][debug] FeishuDocView.loadFile missing lark_url", {
 				path: file.path,
 				frontmatter: fm,
 			});
@@ -140,11 +146,12 @@ export class FeishuDocView extends FileView {
 	async loadEntry(entry: IndexEntry, options?: FrameOptions): Promise<void> {
 		debugLog("FeishuDocView.loadEntry", {
 			path: entry.path,
-			url: entry.feishu_url,
-			title: entry.feishu_title,
+			url: entry.lark_url,
+			title: entry.lark_title,
 		});
 		this.currentSourcePath = entry.path;
-		await this.loadUrl(entry.feishu_url, entry.feishu_title ?? entry.feishu_doc_id, options);
+		this.bindSourceFile(entry.path);
+		await this.loadUrl(entry.lark_url, entry.lark_title ?? entry.lark_doc_id, options);
 	}
 
 	async loadUrl(url: string, title?: string, options?: FrameOptions): Promise<void> {
@@ -187,6 +194,7 @@ export class FeishuDocView extends FileView {
 		const url = state.url as string | undefined;
 		const title = state.title as string | undefined;
 		this.currentSourcePath = sourcePath;
+		this.bindSourceFile(sourcePath);
 		const zoom = state.zoom as number | undefined;
 		const customCss = state.customCss as string | undefined;
 		const hideHeader = state.hideHeader as boolean | undefined;
@@ -212,6 +220,7 @@ export class FeishuDocView extends FileView {
 		this.currentUrl = undefined;
 		this.currentTitle = undefined;
 		this.currentSourcePath = undefined;
+		this.file = null;
 		this.renderEmptyState();
 	}
 
@@ -272,6 +281,39 @@ export class FeishuDocView extends FileView {
 			new Notice(this.t("view.syncFailed", {message: msg}));
 			console.error("[obsidian-lark-doc] view sync error:", err);
 		}
+	}
+
+	private async copyCurrentUrl(): Promise<void> {
+		if (!this.currentUrl) {
+			new Notice(this.t("view.copyLinkUnavailable"));
+			return;
+		}
+
+		try {
+			const clipboard = globalThis.navigator?.clipboard;
+			if (!clipboard?.writeText) {
+				throw new Error("Clipboard API is unavailable");
+			}
+			await clipboard.writeText(this.currentUrl);
+			new Notice(this.t("notice.copiedFeishuLink"));
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			new Notice(this.t("view.copyLinkFailed", {message: msg}));
+			console.error("[obsidian-lark-doc] copy link error:", err);
+		}
+	}
+
+	private bindSourceFile(sourcePath: string | undefined): void {
+		if (!sourcePath) {
+			this.file = null;
+			return;
+		}
+
+		const vault = this.app.vault as App["vault"] & {
+			getAbstractFileByPath?: (path: string) => unknown;
+		};
+		const sourceFile = vault.getAbstractFileByPath?.(sourcePath);
+		this.file = sourceFile instanceof TFile ? sourceFile : null;
 	}
 
 	private renderEmptyState(): void {
@@ -375,13 +417,14 @@ export async function openFeishuView(
 ): Promise<void> {
 	debugLog("openFeishuView called", {
 		path: entry.path,
-		url: entry.feishu_url,
-		title: entry.feishu_title,
+		url: entry.lark_url,
+		title: entry.lark_title,
 		options,
 	});
 	const state = {
-		url: entry.feishu_url,
-		title: entry.feishu_title,
+		file: entry.path,
+		url: entry.lark_url,
+		title: entry.lark_title,
 		sourcePath: entry.path,
 		zoom: options?.zoom,
 		customCss: options?.customCss,
@@ -397,7 +440,7 @@ export async function openFeishuView(
 	if (existingLeaf) {
 		debugLog("openFeishuView refreshing existing leaf", {
 			leaf: describeLeafState(existingLeaf),
-			url: entry.feishu_url,
+			url: entry.lark_url,
 		});
 		await existingLeaf.setViewState({type: FEISHU_VIEW_TYPE, state});
 		await existingLeaf.loadIfDeferred?.();
