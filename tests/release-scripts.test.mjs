@@ -117,6 +117,17 @@ test("validate-release rejects releases without matching changelog notes", async
 	});
 });
 
+test("validate-release rejects releases without styles.css", async () => {
+	await withReleaseFixture(async (dir) => {
+		await rm(join(dir, "styles.css"), {force: true});
+
+		const result = runScript("scripts/validate-release.mjs", [], dir);
+
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /styles\.css release asset is missing/);
+	});
+});
+
 test("changelog-section prints release notes for a version", async () => {
 	await withReleaseFixture(async (dir) => {
 		const result = runScript("scripts/changelog-section.mjs", ["1.2.3"], dir);

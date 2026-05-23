@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-05-23
+
+### Changed
+
+- Added GitHub artifact attestations for release assets.
+- Removed runtime filesystem probing for `lark-cli`; users can configure an explicit CLI path when needed.
+- Tightened release validation and community submission checks for `styles.css` and asset attestations.
+- Documented shell execution and optional background vault enumeration behavior for review transparency.
+
 ## [1.0.1] - 2026-05-23
 
 ### Changed

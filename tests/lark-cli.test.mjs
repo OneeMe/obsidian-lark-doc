@@ -65,9 +65,6 @@ async function loadLarkCliModule() {
 							export function getEffectiveLarkCliPath(cliPath) {
 								return globalThis.__larkCliEffectivePath ?? cliPath;
 							}
-							export function resolveUserShellPath() {
-								return globalThis.__larkCliUserPath;
-							}
 						`,
 					}));
 				},
@@ -86,7 +83,6 @@ function resetLarkCliStubs() {
 	globalThis.__larkCliSpawnQueue = [];
 	globalThis.__larkCliSpawnCalls = [];
 	globalThis.__larkCliEffectivePath = "/resolved/lark-cli";
-	globalThis.__larkCliUserPath = "/user/bin";
 }
 
 test("createFeishuDocument parses successful CLI responses and fallbacks", async () => {
@@ -115,9 +111,9 @@ test("createFeishuDocument parses successful CLI responses and fallbacks", async
 			"--as", "user",
 			"--title", "Input Title",
 		]);
-		assert.equal(globalThis.__larkCliSpawnCalls[0].options.env.PATH, "/user/bin");
+		assert.equal(globalThis.__larkCliSpawnCalls[0].cliPath, "/resolved/lark-cli");
+		assert.deepEqual(globalThis.__larkCliSpawnCalls[0].options, {shell: false});
 
-		globalThis.__larkCliUserPath = undefined;
 		globalThis.__larkCliSpawnQueue.push({
 			stdout: JSON.stringify({node_token: "wikfallback"}),
 		});
@@ -129,7 +125,7 @@ test("createFeishuDocument parses successful CLI responses and fallbacks", async
 				title: "Fallback Title",
 			}
 		);
-		assert.equal(globalThis.__larkCliSpawnCalls[1].options.env, process.env);
+		assert.deepEqual(globalThis.__larkCliSpawnCalls[1].options, {shell: false});
 	} finally {
 		await cleanup();
 	}
@@ -226,7 +222,6 @@ test("fetchFeishuDocumentTitle reports docs fallback failures", async () => {
 		delete globalThis.__larkCliSpawnQueue;
 		delete globalThis.__larkCliSpawnCalls;
 		delete globalThis.__larkCliEffectivePath;
-		delete globalThis.__larkCliUserPath;
 		await cleanup();
 	}
 });

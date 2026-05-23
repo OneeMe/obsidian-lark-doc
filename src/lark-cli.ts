@@ -1,6 +1,6 @@
 import {spawn} from "child_process";
 import type {FeishuDocInfo} from "./types";
-import {getEffectiveLarkCliPath, resolveUserShellPath} from "./lark-cli-resolver";
+import {getEffectiveLarkCliPath} from "./lark-cli-resolver";
 
 export class LarkCliError extends Error {
 	constructor(message: string) {
@@ -14,13 +14,7 @@ function runCommand(
 	args: string[]
 ): Promise<{stdout: string; stderr: string}> {
 	return new Promise((resolve, reject) => {
-		// Inject user's shell PATH so node (and fnm/nvm) are discoverable
-		const userPath = resolveUserShellPath();
-		const env = userPath
-			? {...process.env, PATH: userPath}
-			: process.env;
-
-		const proc = spawn(cliPath, args, {shell: false, env});
+		const proc = spawn(cliPath, args, {shell: false});
 		let stdout = "";
 		let stderr = "";
 

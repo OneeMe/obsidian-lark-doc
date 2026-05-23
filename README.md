@@ -25,7 +25,7 @@ Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents. It ke
 
 ## Usage
 
-1. Configure `Lark CLI path` in plugin settings. The default is `lark-cli`.
+1. Configure `Lark CLI path` in plugin settings. The default is `lark-cli`; use an absolute path if the desktop app cannot find it.
 2. Configure `Default note folder`. The default is `Lark`; linked notes and `Lark Documents.base` are created there.
 3. Run `Add linked Lark document` and paste an existing Lark / Feishu document URL.
 4. The plugin fetches the remote title and creates `Title.lark.md`.
@@ -35,6 +35,12 @@ Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents. It ke
 ## Local File Format
 
 `.lark.md` files are local proxy notes. They store only metadata and a short explanation; the full content stays in Lark / Feishu. The plugin uses Front matter for the document ID, URL, and cached title.
+
+## Security and Permissions
+
+- The plugin uses the vault API for note reads, creates, and updates. It does not use Node.js `fs` in runtime plugin code.
+- The plugin runs the configured `lark-cli` executable with fixed arguments through `child_process.spawn` and `shell: false` when creating documents or fetching titles.
+- Background title sync is disabled by default. If enabled, it enumerates Markdown file paths in the vault to find linked `.lark.md` notes.
 
 ## Development
 

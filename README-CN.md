@@ -25,7 +25,7 @@ Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会�
 
 ## 使用方式
 
-1. 在插件设置中配置 `Lark CLI path`，默认使用 `lark-cli`。
+1. 在插件设置中配置 `Lark CLI path`，默认使用 `lark-cli`；如果桌面端无法找到它，请填写绝对路径。
 2. 设置 `Default note folder`，默认是 `Lark`。新建的关联文件和 `Lark Documents.base` 都会放在这里。
 3. 执行命令 `Add linked Lark document`，输入已有 Lark / 飞书文档 URL。
 4. 插件会读取远端标题，并创建 `标题.lark.md`。
@@ -35,6 +35,12 @@ Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会�
 ## 本地文件格式
 
 `.lark.md` 文件只保存关联元数据和一个简短说明，真实内容仍保存在 Lark / 飞书文档中。插件会使用 Front matter 记录文档 ID、URL 和缓存标题。
+
+## 安全与权限说明
+
+- 插件通过 vault API 读取、创建和更新笔记，运行时代码不使用 Node.js `fs`。
+- 创建文档或获取标题时，插件会通过 `child_process.spawn` 调用已配置的 `lark-cli`，参数固定，并设置 `shell: false`。
+- 后台标题同步默认关闭。启用后，插件会枚举 vault 中的 Markdown 文件路径，用来查找关联的 `.lark.md` 笔记。
 
 ## 开发
 

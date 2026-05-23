@@ -5,6 +5,7 @@ on:
 
 permissions:
     contents: read
+    attestations: read
 
 jobs:
     check:
@@ -22,16 +23,18 @@ jobs:
             - run: npm run release:validate
 
             - name: Verify matching GitHub release
+              id: release
               env:
                   GH_TOKEN: ${{ github.token }}
               run: |
                   version="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')).version)")"
+                  echo "version=${version}" >> "$GITHUB_OUTPUT"
                   gh release view "$version" --repo "${GITHUB_REPOSITORY}" --json url,assets > release.json
                   node <<'NODE'
                   const {readFileSync} = require("node:fs");
                   const release = JSON.parse(readFileSync("release.json", "utf8"));
                   const assets = new Set(release.assets.map((asset) => asset.name));
-                  const requiredAssets = ["main.js", "manifest.json"];
+                  const requiredAssets = ["main.js", "manifest.json", "styles.css"];
                   const missing = requiredAssets.filter((asset) => !assets.has(asset));
                   if (missing.length > 0) {
                     console.error(`Missing release assets: ${missing.join(", ")}`);
@@ -39,6 +42,21 @@ jobs:
                   }
                   console.log(`Release ready: ${release.url}`);
                   NODE
+
+            - name: Verify release asset attestations
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  mkdir -p release-assets
+                  gh release download "${{ steps.release.outputs.version }}" \
+                      --repo "${GITHUB_REPOSITORY}" \
+                      --pattern main.js \
+                      --pattern manifest.json \
+                      --pattern styles.css \
+                      --dir release-assets
+                  gh attestation verify release-assets/main.js --repo "${GITHUB_REPOSITORY}"
+                  gh attestation verify release-assets/manifest.json --repo "${GITHUB_REPOSITORY}"
+                  gh attestation verify release-assets/styles.css --repo "${GITHUB_REPOSITORY}"
 
             - name: Print submission instructions
               run: |

@@ -5,6 +5,7 @@ This repository publishes the plugin as `lark-doc` / `Lark Doc`.
 ## Prerequisites
 
 - GitHub Actions must have **Read and write permissions** for repository contents.
+- GitHub Actions must allow artifact attestations. The release workflow grants `id-token: write` and `attestations: write` for this.
 - The repository must be public before it is submitted to the Obsidian Community directory.
 - The release tag must exactly match `manifest.json.version`; do not prefix tags with `v`.
 - `manifest.json` must not include `Obsidian` in `id`, `name`, or `description`; the directory context already implies that.
@@ -36,6 +37,15 @@ Then it creates a GitHub release and uploads the Obsidian release assets:
 - `manifest.json`
 - `styles.css`
 
+Before the release is created, the workflow generates GitHub artifact attestations for those assets with `actions/attest`. You can verify a downloaded asset with:
+
+```bash
+gh attestation verify main.js --repo OneeMe/obsidian-lark-doc
+gh attestation verify styles.css --repo OneeMe/obsidian-lark-doc
+```
+
+The runtime plugin code intentionally does not probe the filesystem for `lark-cli`. Users should configure an absolute `Lark CLI path` if the desktop app cannot resolve `lark-cli` from its PATH.
+
 The GitHub Release body is generated from the matching version section in `CHANGELOG.md`.
 
 ## Changelog policy
@@ -62,8 +72,9 @@ The workflow:
 
 1. Builds and validates the plugin release metadata.
 2. Verifies that a GitHub Release exists for the current `manifest.json.version`.
-3. Verifies that the release includes `main.js` and `manifest.json`.
-4. Prints the manual submission instructions in the GitHub Actions summary.
+3. Verifies that the release includes `main.js`, `manifest.json`, and `styles.css`.
+4. Verifies GitHub artifact attestations for those release assets.
+5. Prints the manual submission instructions in the GitHub Actions summary.
 
 Then submit the repository URL at `https://community.obsidian.md`:
 

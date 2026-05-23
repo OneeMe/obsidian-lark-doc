@@ -45,6 +45,9 @@ if (!existsSync("main.js")) {
 if (!existsSync("manifest.json")) {
 	failures.push("manifest.json release asset is missing.");
 }
+if (!existsSync("styles.css")) {
+	failures.push("styles.css release asset is missing.");
+}
 
 if (failures.length > 0) {
 	for (const failure of failures) {
