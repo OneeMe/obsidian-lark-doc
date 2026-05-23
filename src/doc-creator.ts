@@ -1,6 +1,6 @@
 import {App, Modal, Notice} from "obsidian";
 import type ObsidianFeishuPlugin from "./main";
-import {createFeishuDocument} from "./lark-cli";
+import {createFeishuDocument, formatLarkCliError} from "./lark-cli";
 import {createLarkMarkdownNote} from "./lark-note";
 
 export class CreateFeishuDocModal extends Modal {
@@ -80,7 +80,7 @@ export class CreateFeishuDocModal extends Modal {
 			new Notice(this.plugin.t("notice.createdDocument", {title: docInfo.title}));
 			this.close();
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
+			const msg = formatLarkCliError(err, (key, vars) => this.plugin.t(key, vars));
 			new Notice(this.plugin.t("notice.createDocumentFailed", {message: msg}));
 			console.error("[obsidian-lark-doc] create doc error:", err);
 		} finally {

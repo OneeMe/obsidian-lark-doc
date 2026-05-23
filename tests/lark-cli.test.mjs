@@ -209,6 +209,62 @@ test("createFeishuDocument reports parse, API, spawn, and token errors", async (
 	}
 });
 
+test("createFeishuDocument explains how to fix missing Lark CLI errors", async () => {
+	const {module, cleanup} = await loadLarkCliModule();
+	try {
+		resetLarkCliStubs();
+		globalThis.__larkCliEffectivePath = "lark-cli";
+		globalThis.__larkCliSpawnQueue.push({
+			error: Object.assign(new Error("spawn lark-cli ENOENT"), {
+				code: "ENOENT",
+				path: "lark-cli",
+				syscall: "spawn lark-cli",
+			}),
+		});
+
+		await assert.rejects(
+			() => module.createFeishuDocument("lark-cli", "Title", "tenant.feishu.cn"),
+			(err) => {
+				assert.ok(err instanceof module.LarkCliError);
+				assert.match(err.message, /Lark CLI was not found/);
+				assert.match(err.message, /absolute path/);
+				assert.match(err.message, /Obsidian may not inherit your terminal PATH/);
+				assert.match(err.message, /Current value: lark-cli/);
+				assert.doesNotMatch(err.message, /spawn lark-cli ENOENT/);
+				assert.equal(err.translationKey, "error.larkCliNotFound");
+				assert.deepEqual(err.translationVars, {cliPath: "lark-cli"});
+				return true;
+			}
+		);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("formatLarkCliError translates structured errors and preserves fallback messages", async () => {
+	const {module, cleanup} = await loadLarkCliModule();
+	try {
+		const translated = module.formatLarkCliError(
+			Object.assign(new Error("English fallback"), {
+				translationKey: "error.larkCliNotFound",
+				translationVars: {cliPath: "lark-cli"},
+			}),
+			(key, vars) => `${key}:${vars.cliPath}`
+		);
+		assert.equal(translated, "error.larkCliNotFound:lark-cli");
+		assert.equal(
+			module.formatLarkCliError(new Error("plain failure"), () => "unused"),
+			"plain failure"
+		);
+		assert.equal(
+			module.formatLarkCliError("raw failure", () => "unused"),
+			"raw failure"
+		);
+	} finally {
+		await cleanup();
+	}
+});
+
 test("fetchFeishuDocumentTitle uses wiki lookup, docs JSON, XML, and empty fallback", async () => {
 	const {module, cleanup} = await loadLarkCliModule();
 	try {

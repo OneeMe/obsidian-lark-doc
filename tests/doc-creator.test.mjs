@@ -68,14 +68,19 @@ async function loadDocCreatorModule() {
 							export class Notice {}
 						`,
 					}));
-					build.onResolve({filter: /lark-cli$/}, () => ({
-						path: "lark-cli",
-						namespace: "obsidian-doc-creator-test-stubs",
-					}));
-					build.onLoad({filter: /^lark-cli$/, namespace: "obsidian-doc-creator-test-stubs"}, () => ({
-						loader: "js",
-						contents: "export async function createFeishuDocument() {}",
-					}));
+						build.onResolve({filter: /lark-cli$/}, () => ({
+							path: "lark-cli",
+							namespace: "obsidian-doc-creator-test-stubs",
+						}));
+						build.onLoad({filter: /^lark-cli$/, namespace: "obsidian-doc-creator-test-stubs"}, () => ({
+							loader: "js",
+							contents: `
+								export async function createFeishuDocument() {}
+								export function formatLarkCliError(err) {
+									return err instanceof Error ? err.message : String(err);
+								}
+							`,
+						}));
 					build.onResolve({filter: /lark-note$/}, () => ({
 						path: "lark-note",
 						namespace: "obsidian-doc-creator-test-stubs",

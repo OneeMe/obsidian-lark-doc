@@ -43,14 +43,22 @@ test("translate resolves configured language and interpolates values", async () 
 			module.translate("zh-CN", "notice.syncedFeishuTitle", {name: "测试.lark.md"}),
 			"已同步 Lark 标题：测试.lark.md"
 		);
-		assert.equal(
-			module.translate("en", "notice.syncedFeishuTitle", {name: "Test.lark.md"}),
-			"Synced Lark title for Test.lark.md"
-		);
-	} finally {
-		await cleanup();
-	}
-});
+			assert.equal(
+				module.translate("en", "notice.syncedFeishuTitle", {name: "Test.lark.md"}),
+				"Synced Lark title for Test.lark.md"
+			);
+			assert.equal(
+				module.translate("zh-CN", "error.larkCliNotFound", {cliPath: "lark-cli"}),
+				"未找到 Lark CLI。当前配置：lark-cli。Obsidian 可能没有继承终端 PATH。请在插件设置中填写 Lark CLI 的绝对路径。"
+			);
+			assert.equal(
+				module.translate("en", "error.larkCliNotFound", {cliPath: "lark-cli"}),
+				"Lark CLI was not found. Current value: lark-cli. Obsidian may not inherit your terminal PATH. Set an absolute path to Lark CLI in plugin settings."
+			);
+		} finally {
+			await cleanup();
+		}
+	});
 
 test("translate detects runtime locales and handles missing interpolation values", async () => {
 	const {module, cleanup} = await loadI18nModule();

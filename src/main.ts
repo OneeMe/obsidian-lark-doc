@@ -22,7 +22,7 @@ import {
 import {parseFeishuUrl} from "./types";
 import {CreateFeishuDocModal} from "./doc-creator";
 import {syncTitle} from "./title-sync";
-import {fetchFeishuDocumentTitle} from "./lark-cli";
+import {fetchFeishuDocumentTitle, formatLarkCliError} from "./lark-cli";
 import {ensureBaseFile, getBaseFilePath} from "./base-manager";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
 import {getLarkMarkdownPathFromViewState, isLarkMarkdownFile} from "./lark-file";
@@ -635,7 +635,7 @@ export class AddLinkedFeishuDocumentModal extends Modal {
 			new Notice(this.plugin.t("notice.addedLinkedDocument", {title: noteTitle}));
 			this.close();
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
+			const msg = formatLarkCliError(err, (key, vars) => this.plugin.t(key, vars));
 			new Notice(this.plugin.t("notice.addLinkedDocumentFailed", {message: msg}));
 			console.error("[obsidian-lark-doc] add linked doc error:", err);
 		} finally {

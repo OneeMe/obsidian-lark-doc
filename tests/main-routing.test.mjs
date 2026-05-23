@@ -150,14 +150,19 @@ async function loadMainRoutingModule() {
 							export function isLarkMarkdownFile() { return false; }
 						`,
 					}));
-					build.onLoad({filter: /^lark-note$/, namespace: "obsidian-main-routing-test-stubs"}, () => ({
-						loader: "js",
-						contents: "export async function createLarkMarkdownNote() {}",
-					}));
-					build.onLoad({filter: /^lark-cli$/, namespace: "obsidian-main-routing-test-stubs"}, () => ({
-						loader: "js",
-						contents: "export async function fetchFeishuDocumentTitle() { return null; }",
-					}));
+						build.onLoad({filter: /^lark-note$/, namespace: "obsidian-main-routing-test-stubs"}, () => ({
+							loader: "js",
+							contents: "export async function createLarkMarkdownNote() {}",
+						}));
+						build.onLoad({filter: /^lark-cli$/, namespace: "obsidian-main-routing-test-stubs"}, () => ({
+							loader: "js",
+							contents: `
+								export async function fetchFeishuDocumentTitle() { return null; }
+								export function formatLarkCliError(err) {
+									return err instanceof Error ? err.message : String(err);
+								}
+							`,
+						}));
 					build.onLoad({filter: /^i18n$/, namespace: "obsidian-main-routing-test-stubs"}, () => ({
 						loader: "js",
 						contents: `

@@ -81,6 +81,8 @@ const EN_TRANSLATIONS = {
 	"notice.removedAssociation": "Removed Lark association from {{name}}",
 	"notice.associationSaved": "Lark association saved for {{name}}",
 
+	"error.larkCliNotFound": "Lark CLI was not found. Current value: {{cliPath}}. Obsidian may not inherit your terminal PATH. Set an absolute path to Lark CLI in plugin settings.",
+
 	"view.defaultTitle": "Lark Document",
 	"view.displayPrefix": "Lark: {{title}}",
 	"view.syncAction": "Sync Lark title and filename",
@@ -180,6 +182,8 @@ const ZH_CN_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
 	"notice.noFrontMatterFound": "未找到 Front matter。",
 	"notice.removedAssociation": "已从 {{name}} 移除 Lark 关联",
 	"notice.associationSaved": "已保存 {{name}} 的 Lark 关联",
+
+	"error.larkCliNotFound": "未找到 Lark CLI。当前配置：{{cliPath}}。Obsidian 可能没有继承终端 PATH。请在插件设置中填写 Lark CLI 的绝对路径。",
 
 	"view.defaultTitle": "Lark 文档",
 	"view.displayPrefix": "Lark：{{title}}",

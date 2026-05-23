@@ -1,13 +1,27 @@
 import {spawn} from "child_process";
 import {delimiter, dirname} from "path";
 import type {FeishuDocInfo} from "./types";
+import type {TranslationKey, TranslationVars, Translator} from "./i18n";
 import {getEffectiveLarkCliPath} from "./lark-cli-resolver";
 
 export class LarkCliError extends Error {
-	constructor(message: string) {
+	translationKey: TranslationKey | undefined;
+	translationVars: TranslationVars | undefined;
+
+	constructor(
+		message: string,
+		translation?: {key: TranslationKey; vars?: TranslationVars}
+	) {
 		super(message);
 		this.name = "LarkCliError";
+		this.translationKey = translation?.key;
+		this.translationVars = translation?.vars;
 	}
+}
+
+interface TranslatableError {
+	translationKey?: TranslationKey;
+	translationVars?: TranslationVars;
 }
 
 function runCommand(
@@ -29,7 +43,7 @@ function runCommand(
 		});
 
 		proc.on("error", (err) => {
-			reject(new LarkCliError(`Failed to spawn Lark CLI: ${err.message}`));
+			reject(createSpawnError(cliPath, err));
 		});
 
 		proc.on("close", (code) => {
@@ -40,6 +54,35 @@ function runCommand(
 			}
 		});
 	});
+}
+
+export function formatLarkCliError(err: unknown, translate: Translator): string {
+	if (isTranslatableError(err)) {
+		return translate(err.translationKey, err.translationVars);
+	}
+	return err instanceof Error ? err.message : String(err);
+}
+
+function isTranslatableError(err: unknown): err is TranslatableError & {translationKey: TranslationKey} {
+	return typeof (err as TranslatableError | null)?.translationKey === "string";
+}
+
+function createSpawnError(cliPath: string, err: Error & {code?: string}): LarkCliError {
+	if (err.code !== "ENOENT") {
+		return new LarkCliError(`Failed to spawn Lark CLI: ${err.message}`);
+	}
+
+	return new LarkCliError(
+		[
+			`Lark CLI was not found. Current value: ${cliPath}.`,
+			"Obsidian may not inherit your terminal PATH.",
+			"Set an absolute path to Lark CLI in plugin settings.",
+		].join(" "),
+		{
+			key: "error.larkCliNotFound",
+			vars: {cliPath},
+		}
+	);
 }
 
 function buildCommandEnv(cliPath: string): Record<string, string | undefined> | undefined {

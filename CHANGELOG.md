@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-05-23
+
+### Fixed
+
+- Improved the missing `lark-cli` error message with localized, actionable setup guidance.
+
 ## [1.0.3] - 2026-05-23
 
 ### Added
