@@ -46,7 +46,7 @@ jobs:
               run: |
                   version="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')).version)")"
                   echo "version=${version}" >> "$GITHUB_OUTPUT"
-                  npm run release:notes -- "$version" > release-notes.md
+                  npm --silent run release:notes -- "$version" > release-notes.md
 
             - name: Ensure release tag is new
               run: |

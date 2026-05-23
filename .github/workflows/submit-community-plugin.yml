@@ -47,7 +47,7 @@ jobs:
               working-directory: plugin
               env:
                   GITHUB_REPOSITORY: ${{ github.repository }}
-              run: npm run release:community-entry > community-entry.json
+              run: npm --silent run release:community-entry > community-entry.json
 
             - name: Update community plugin list
               run: node plugin/scripts/update-community-plugins.mjs obsidian-releases/community-plugins.json plugin/community-entry.json
