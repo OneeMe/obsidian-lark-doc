@@ -92,6 +92,20 @@ test("validate-release rejects marketplace identifiers that contain Obsidian", a
 	});
 });
 
+test("validate-release rejects marketplace descriptions that contain Obsidian", async () => {
+	await withReleaseFixture(async (dir) => {
+		const manifestPath = join(dir, "manifest.json");
+		const manifest = await readJson(manifestPath);
+		manifest.description = "Bridge your Obsidian vault with Lark and Feishu documents.";
+		await writeJson(manifestPath, manifest);
+
+		const result = runScript("scripts/validate-release.mjs", [], dir);
+
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /manifest\.description must not contain "Obsidian"/);
+	});
+});
+
 test("validate-release rejects releases without matching changelog notes", async () => {
 	await withReleaseFixture(async (dir) => {
 		await writeFile(join(dir, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n\n");
@@ -111,50 +125,6 @@ test("changelog-section prints release notes for a version", async () => {
 		assert.match(result.stdout, /### Added/);
 		assert.match(result.stdout, /Initial fixture release/);
 		assert.doesNotMatch(result.stdout, /Unreleased/);
-	});
-});
-
-test("community-entry creates the official plugin catalog entry from manifest metadata", async () => {
-	await withReleaseFixture(async (dir) => {
-		const result = runScript("scripts/community-entry.mjs", [], dir, {
-			GITHUB_REPOSITORY: "OneeMe/obsidian-lark-doc",
-		});
-
-		assert.equal(result.status, 0, result.stderr);
-		assert.deepEqual(JSON.parse(result.stdout), {
-			id: "lark-doc",
-			name: "Lark Doc",
-			author: "OneeMe",
-			description: "Bridge your vault with Lark and Feishu documents.",
-			repo: "OneeMe/obsidian-lark-doc",
-		});
-	});
-});
-
-test("update-community-plugins inserts a missing plugin entry", async () => {
-	await withReleaseFixture(async (dir) => {
-		const registryPath = join(dir, "community-plugins.json");
-		const entryPath = join(dir, "entry.json");
-		await writeFile(registryPath, '[ {"id":"other","name":"Other","author":"A","description":"D","repo":"a/b"} ]\n');
-		await writeJson(entryPath, {
-			id: "lark-doc",
-			name: "Lark Doc",
-			author: "OneeMe",
-			description: "Bridge your vault with Lark and Feishu documents.",
-			repo: "OneeMe/obsidian-lark-doc",
-		});
-
-		const result = runScript("scripts/update-community-plugins.mjs", [
-			registryPath,
-			entryPath,
-		], dir);
-
-		assert.equal(result.status, 0, result.stderr);
-		const registry = await readJson(registryPath);
-		const output = await readFile(registryPath, "utf8");
-		assert.equal(registry.at(-1).id, "lark-doc");
-		assert.equal(output.includes('\n  {\n    "id": "lark-doc"'), true);
-		assert.doesNotMatch(output, /\}, \{/);
 	});
 });
 

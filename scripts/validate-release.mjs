@@ -30,6 +30,9 @@ if (/obsidian/i.test(manifest.id)) {
 if (/obsidian/i.test(manifest.name)) {
 	failures.push('manifest.name must not contain "Obsidian" for community directory submission.');
 }
+if (/obsidian/i.test(manifest.description)) {
+	failures.push('manifest.description must not contain "Obsidian" for community directory submission.');
+}
 if (typeof manifest.isDesktopOnly !== "boolean") {
 	failures.push("manifest.isDesktopOnly must be a boolean.");
 }

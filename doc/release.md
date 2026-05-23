@@ -5,8 +5,9 @@ This repository publishes the plugin as `lark-doc` / `Lark Doc`.
 ## Prerequisites
 
 - GitHub Actions must have **Read and write permissions** for repository contents.
-- The repository must have a GitHub secret named `OBSIDIAN_RELEASES_TOKEN` before running the community submission workflow. Use a personal access token that can fork public repositories and open pull requests against `obsidianmd/obsidian-releases` (`public_repo` is enough for a classic token).
+- The repository must be public before it is submitted to the Obsidian Community directory.
 - The release tag must exactly match `manifest.json.version`; do not prefix tags with `v`.
+- `manifest.json` must not include `Obsidian` in `id`, `name`, or `description`; the directory context already implies that.
 
 ## Release to GitHub
 
@@ -53,20 +54,28 @@ Keep pending work under `## [Unreleased]` while developing. Before running the r
 
 ## Submit to the official community directory
 
-Run **Actions -> Submit community plugin** after a GitHub release exists for the current `manifest.json.version`. The workflow verifies that release before opening the community registry PR.
+Obsidian now accepts new plugin submissions through the [Community directory website](https://community.obsidian.md), not through pull requests to `obsidianmd/obsidian-releases`. The official process is documented in [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin).
+
+Run **Actions -> Community submission check** after a GitHub release exists for the current `manifest.json.version`. This workflow verifies the repository state before you submit it manually.
 
 The workflow:
 
 1. Builds and validates the plugin release metadata.
-2. Generates a `community-plugins.json` entry from `manifest.json`.
-3. Checks out `obsidianmd/obsidian-releases`.
-4. Adds the `lark-doc` entry if it is missing.
-5. Pushes a branch to your fork of `obsidian-releases`.
-6. Opens a pull request against `obsidianmd/obsidian-releases`.
+2. Verifies that a GitHub Release exists for the current `manifest.json.version`.
+3. Verifies that the release includes `main.js` and `manifest.json`.
+4. Prints the manual submission instructions in the GitHub Actions summary.
 
-If your `obsidian-releases` fork is owned by a different account or organization, pass that owner through the `fork_owner` workflow input.
+Then submit the repository URL at `https://community.obsidian.md`:
 
-Official review is still required. After the plugin is accepted, normal updates only need the GitHub release workflow; Obsidian installs updates from release assets tagged with the same version as `manifest.json`.
+1. Sign in with your Obsidian account.
+2. Link your GitHub account.
+3. Select **Plugins -> New plugin**.
+4. Submit `https://github.com/OneeMe/obsidian-lark-doc`.
+5. Review and accept the developer policies.
+
+The directory reads `manifest.json` from the default branch and downloads assets from the GitHub release whose tag matches `manifest.json.version`.
+
+Official review is still required. If review feedback requires repository changes, update the repository, move the changelog entries into a new version section, publish an incremented GitHub release, and submit again from the Community directory. After the plugin is accepted, normal updates only need the GitHub release workflow.
 
 ## Local commands
 
@@ -83,8 +92,10 @@ npm run build
 npm run release:validate
 ```
 
-Generate the community registry entry:
+Check the current state before manual Community directory submission:
 
 ```bash
-npm run release:community-entry
+npm run build
+npm run release:validate
+gh release view "$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')).version)")"
 ```

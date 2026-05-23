@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-lark-doc",
-	"version": "1.0.0",
-	"description": "Bridge your Obsidian vault with Lark and Feishu documents.",
+	"version": "1.0.1",
+	"description": "Bridge your vault with Lark and Feishu documents.",
 	"main": "main.js",
 	"type": "module",
 	"repository": {
@@ -15,7 +15,6 @@
 		"test:coverage": "node tests/run-coverage.mjs",
 		"release:prepare": "node scripts/prepare-release.mjs",
 		"release:validate": "node scripts/validate-release.mjs",
-		"release:community-entry": "node scripts/community-entry.mjs",
 		"release:notes": "node scripts/changelog-section.mjs",
 		"version": "node version-bump.mjs && git add package.json package-lock.json manifest.json versions.json",
 		"lint": "eslint ."

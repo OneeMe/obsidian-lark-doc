@@ -107,8 +107,9 @@ npm run build
   - `isDesktopOnly` (boolean)  
   - Optional: `author`, `authorUrl`, `fundingUrl` (string or map)
 - Never change `id` after release. Treat it as stable API.
+- Do not include `Obsidian` in `id`, `name`, or `description`; the community directory context already implies it.
 - Keep `minAppVersion` accurate when using newer APIs.
-- Canonical requirements are coded here: https://github.com/obsidianmd/obsidian-releases/blob/master/.github/workflows/validate-plugin-entry.yml
+- Follow the current submission and manifest guidance in the official developer docs: https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin
 
 ## Testing
 
@@ -130,7 +131,7 @@ npm run build
 - Bump `version` in `manifest.json` (SemVer) and update `versions.json` to map plugin version → minimum app version.
 - Create a GitHub release whose tag exactly matches `manifest.json`'s `version`. Do not use a leading `v`.
 - Attach `manifest.json`, `main.js`, and `styles.css` (if present) to the release as individual assets.
-- After the initial release, follow the process to add/update your plugin in the community catalog as required.
+- Submit the initial version through https://community.obsidian.md after the matching GitHub release exists. Do not open pull requests against `obsidianmd/obsidian-releases`; pull requests are disabled for new submissions.
 
 ## Security, privacy, and compliance
 

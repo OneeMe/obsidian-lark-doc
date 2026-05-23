@@ -53,4 +53,4 @@ npm run build
 - `main.js`
 - `styles.css`
 
-发布流程见 [Release guide](doc/release.md)，变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+发布流程和社区提交前检查见 [Release guide](doc/release.md)，变更记录见 [CHANGELOG.md](CHANGELOG.md)。

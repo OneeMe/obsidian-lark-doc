@@ -1,0 +1,57 @@
+name: Community submission check
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22.x
+                  cache: "npm"
+
+            - run: npm ci
+            - run: npm run build
+            - run: npm run release:validate
+
+            - name: Verify matching GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  version="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')).version)")"
+                  gh release view "$version" --repo "${GITHUB_REPOSITORY}" --json url,assets > release.json
+                  node <<'NODE'
+                  const {readFileSync} = require("node:fs");
+                  const release = JSON.parse(readFileSync("release.json", "utf8"));
+                  const assets = new Set(release.assets.map((asset) => asset.name));
+                  const requiredAssets = ["main.js", "manifest.json"];
+                  const missing = requiredAssets.filter((asset) => !assets.has(asset));
+                  if (missing.length > 0) {
+                    console.error(`Missing release assets: ${missing.join(", ")}`);
+                    process.exit(1);
+                  }
+                  console.log(`Release ready: ${release.url}`);
+                  NODE
+
+            - name: Print submission instructions
+              run: |
+                  repo_url="https://github.com/${GITHUB_REPOSITORY}"
+                  {
+                      echo "### Community directory submission"
+                      echo ""
+                      echo "This repository is ready for the current Obsidian Community directory flow."
+                      echo ""
+                      echo "1. Go to https://community.obsidian.md and sign in."
+                      echo "2. Link your GitHub account."
+                      echo "3. Open Plugins -> New plugin."
+                      echo "4. Submit this repository URL: ${repo_url}"
+                      echo ""
+                      echo "The directory reads manifest.json from the default branch and downloads assets from the GitHub release whose tag matches manifest.json.version."
+                  } >> "$GITHUB_STEP_SUMMARY"

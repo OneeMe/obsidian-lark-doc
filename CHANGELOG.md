@@ -6,9 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-23
+
 ### Changed
 
 - Renamed the project package and repository references to `obsidian-lark-doc` while keeping the Obsidian plugin ID as `lark-doc`.
+- Replaced the obsolete `obsidian-releases` pull request workflow with a Community directory submission check.
+
+### Fixed
+
+- Removed the redundant word `Obsidian` from the plugin description for Community directory review.
 
 ## [1.0.0] - 2026-05-23
 

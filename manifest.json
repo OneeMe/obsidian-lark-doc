@@ -1,9 +1,9 @@
 {
 	"id": "lark-doc",
 	"name": "Lark Doc",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "Bridge your Obsidian vault with Lark and Feishu documents.",
+	"description": "Bridge your vault with Lark and Feishu documents.",
 	"author": "OneeMe",
 	"authorUrl": "https://github.com/OneeMe",
 	"isDesktopOnly": true

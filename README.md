@@ -53,5 +53,5 @@ Release assets for Obsidian:
 - `main.js`
 - `styles.css`
 
-See [Release guide](doc/release.md) for the automated release and community submission workflow.
+See [Release guide](doc/release.md) for the automated release and community submission check workflow.
 Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
