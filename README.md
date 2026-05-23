@@ -6,6 +6,16 @@ Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents. It ke
 
 [中文说明](README-CN.md)
 
+## Screenshots
+
+Open a local `.lark.md` note and view the linked Lark / Feishu document directly inside Obsidian.
+
+![Lark Doc WebView preview](assets/screenshots/webview-preview.png)
+
+Browse linked documents from the generated `Lark Documents.base` view.
+
+![Lark Documents base view](assets/screenshots/documents-base.png)
+
 ## Features
 
 - Automatically opens the linked Lark / Feishu document when a `.lark.md` file is opened in Obsidian.

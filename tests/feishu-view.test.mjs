@@ -136,6 +136,27 @@ function installDocumentStub() {
 	};
 }
 
+function createCssWebviewStub() {
+	const inserted = [];
+	const removed = [];
+	return {
+		inserted,
+		removed,
+		webview: {
+			src: "",
+			style: {},
+			addEventListener() {},
+			insertCSS: async (css) => {
+				inserted.push(css);
+				return `css-${inserted.length}`;
+			},
+			removeInsertedCSS: async (key) => {
+				removed.push(key);
+			},
+		},
+	};
+}
+
 test("FeishuDocView replaces Obsidian navigation with sync and copy actions", async () => {
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
@@ -218,6 +239,38 @@ test("FeishuDocView copy action copies the current Lark document URL", async () 
 			});
 		}
 		delete globalThis.__obsidianFeishuViewNotices;
+		restoreDocument();
+		await cleanup();
+	}
+});
+
+test("FeishuDocView injectCss does not add Obsidian theme CSS", async () => {
+	const restoreDocument = installDocumentStub();
+	const {module, cleanup} = await loadFeishuViewModule();
+	try {
+		const view = new module.FeishuDocView({
+			app: {
+				metadataCache: {getFileCache: () => null},
+				vault: {cachedRead: async () => ""},
+			},
+		});
+		const cssStub = createCssWebviewStub();
+		view.webviewEl = cssStub.webview;
+
+		await view.injectCss("html { --custom: yes; }", false);
+
+		assert.equal(cssStub.inserted.length, 1);
+		assert.equal(cssStub.inserted[0].trim(), "html { --custom: yes; }");
+		assert.doesNotMatch(cssStub.inserted[0], /obsidian-lark-doc-theme/);
+		assert.doesNotMatch(cssStub.inserted[0], /color-scheme/);
+		assert.doesNotMatch(cssStub.inserted[0], /theme-light|theme-dark/);
+		assert.doesNotMatch(cssStub.inserted[0], /background-color: #(?:191919|ffffff)/);
+
+		await view.injectCss("", false);
+
+		assert.equal(cssStub.inserted.length, 1);
+		assert.deepEqual(cssStub.removed, ["css-1"]);
+	} finally {
 		restoreDocument();
 		await cleanup();
 	}

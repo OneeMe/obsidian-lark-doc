@@ -6,9 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-05-23
+
 ### Added
 
 - Added a preview header action to copy the current Lark / Feishu document link.
+- Added README screenshots for the WebView preview and Lark Documents base views.
 
 ### Changed
 

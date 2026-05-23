@@ -6,6 +6,16 @@ Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档。它会�
 
 [English](README.md)
 
+## 截图
+
+打开本地 `.lark.md` 笔记，即可在 Obsidian 中直接查看关联的 Lark / 飞书文档。
+
+![Lark Doc WebView 预览](assets/screenshots/webview-preview.png)
+
+通过自动生成的 `Lark Documents.base` 视图集中浏览已关联文档。
+
+![Lark Documents Base 视图](assets/screenshots/documents-base.png)
+
 ## 功能
 
 - 打开 `.lark.md` 文件时，自动在 Obsidian 内打开对应的 Lark / 飞书文档预览。
