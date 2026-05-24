@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-lark-doc",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"description": "Bridge your vault with Lark and Feishu documents.",
 	"main": "main.js",
 	"type": "module",
