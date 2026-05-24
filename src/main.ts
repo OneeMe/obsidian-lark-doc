@@ -287,18 +287,16 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			feishuLeafCount: feishuLeaves.length,
 			existingLeaf: existingLeaf ? describeLeaf(existingLeaf) : null,
 		});
-		if (existingLeaf && existingLeaf !== leaf) {
-			const routedState = this.createLarkMarkdownViewState(viewState, entry);
-			debugLog("routeLarkMarkdownViewState refreshing existing leaf", {
+		if (existingLeaf) {
+			debugLog("routeLarkMarkdownViewState revealing existing leaf without refresh", {
 				filePath,
 				existingLeaf: describeLeaf(existingLeaf),
 				currentLeaf: describeLeaf(leaf),
 			});
-			await existingLeaf.setViewState(routedState);
 			await existingLeaf.loadIfDeferred?.();
 			await this.app.workspace.revealLeaf(existingLeaf);
 			this.notifyLarkFileOpen(entry.path);
-			if (leaf.getViewState().type === "empty") {
+			if (existingLeaf !== leaf && leaf.getViewState().type === "empty") {
 				debugLog("routeLarkMarkdownViewState detaching empty click target", {
 					filePath,
 				});
@@ -582,7 +580,7 @@ export class AddLinkedFeishuDocumentModal extends Modal {
 			cls: "feishu-modal-input",
 			type: "text",
 		});
-		this.urlInput.placeholder = "https://www.feishu.cn/wiki/...";
+		this.urlInput.placeholder = "https://www.feishu.cn/wiki/... or https://www.feishu.cn/base/...";
 
 		const btnContainer = contentEl.createDiv({cls: "modal-button-container"});
 		this.addBtn = btnContainer.createEl("button", {cls: "mod-cta", text: this.plugin.t("button.add")});
@@ -617,7 +615,8 @@ export class AddLinkedFeishuDocumentModal extends Modal {
 		try {
 			const noteTitle = (await fetchFeishuDocumentTitle(
 				this.plugin.settings.larkCliPath,
-				parsed.docId
+				parsed.docId,
+				parsed.url
 			)).trim();
 			if (!noteTitle) {
 				throw new Error(this.plugin.t("notice.fetchTitleFailed"));

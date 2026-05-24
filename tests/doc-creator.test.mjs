@@ -38,6 +38,9 @@ async function loadDocCreatorModule() {
 									this.placeholder = "";
 									this.disabled = false;
 									this.textContent = text;
+									this.value = "";
+									this.checked = false;
+									this.listeners = {};
 								}
 								empty() {
 									this.children = [];
@@ -54,7 +57,12 @@ async function loadDocCreatorModule() {
 									this.children.push(child);
 									return child;
 								}
-								addEventListener() {}
+								addEventListener(type, listener) {
+									this.listeners[type] = listener;
+								}
+								dispatchEvent(type) {
+									this.listeners[type]?.({target: this});
+								}
 							}
 
 							export class Modal {
@@ -75,7 +83,24 @@ async function loadDocCreatorModule() {
 						build.onLoad({filter: /^lark-cli$/, namespace: "obsidian-doc-creator-test-stubs"}, () => ({
 							loader: "js",
 							contents: `
-								export async function createFeishuDocument() {}
+								globalThis.__obsidianFeishuDocCreatorCreateDocCalls = [];
+								globalThis.__obsidianFeishuDocCreatorCreateBaseCalls = [];
+								export async function createFeishuDocument(...args) {
+									globalThis.__obsidianFeishuDocCreatorCreateDocCalls.push(args);
+									return {
+										docId: "wikabc",
+										url: "https://my.feishu.cn/wiki/wikabc",
+										title: "Created Doc",
+									};
+								}
+								export async function createFeishuBase(...args) {
+									globalThis.__obsidianFeishuDocCreatorCreateBaseCalls.push(args);
+									return {
+										docId: "basabc",
+										url: "https://my.feishu.cn/base/basabc",
+										title: "Created Base",
+									};
+								}
 								export function formatLarkCliError(err) {
 									return err instanceof Error ? err.message : String(err);
 								}
@@ -87,7 +112,13 @@ async function loadDocCreatorModule() {
 					}));
 					build.onLoad({filter: /^lark-note$/, namespace: "obsidian-doc-creator-test-stubs"}, () => ({
 						loader: "js",
-						contents: "export async function createLarkMarkdownNote() {}",
+						contents: `
+							globalThis.__obsidianFeishuDocCreatorCreateNoteCalls = [];
+							export async function createLarkMarkdownNote(app, options) {
+								globalThis.__obsidianFeishuDocCreatorCreateNoteCalls.push(options);
+								return {path: options.title + ".lark.md"};
+							}
+						`,
 					}));
 				},
 			},
@@ -105,9 +136,16 @@ function flattenElements(element) {
 	return [element, ...element.children.flatMap(flattenElements)];
 }
 
-test("CreateFeishuDocModal only asks for a document title", async () => {
+function resetDocCreatorStubs() {
+	globalThis.__obsidianFeishuDocCreatorCreateDocCalls = [];
+	globalThis.__obsidianFeishuDocCreatorCreateBaseCalls = [];
+	globalThis.__obsidianFeishuDocCreatorCreateNoteCalls = [];
+}
+
+test("CreateFeishuDocModal asks for a title and document type", async () => {
 	const {module, cleanup} = await loadDocCreatorModule();
 	try {
+		resetDocCreatorStubs();
 		const modal = new module.CreateFeishuDocModal({}, {
 			t: (key) => key,
 			settings: {
@@ -121,9 +159,105 @@ test("CreateFeishuDocModal only asks for a document title", async () => {
 		modal.onOpen();
 
 		const elements = flattenElements(modal.contentEl);
-		assert.equal(elements.filter((element) => element.tag === "input").length, 1);
+		assert.equal(elements.filter((element) => element.tag === "input" && element.type === "text").length, 1);
+		assert.equal(elements.filter((element) => element.tag === "input" && element.type === "radio").length, 2);
+		assert.ok(elements.some((element) => element.text === "modal.resourceType.label"));
+		assert.ok(elements.some((element) => element.text === "modal.resourceType.doc"));
+		assert.ok(elements.some((element) => element.text === "modal.resourceType.base"));
 		assert.equal(elements.filter((element) => element.tag === "textarea").length, 0);
 		assert.equal(elements.some((element) => element.text === "Initial content (optional)"), false);
+
+		const baseRadio = elements.find((element) => element.tag === "input" && element.type === "radio" && element.value === "base");
+		baseRadio.dispatchEvent("change");
+		modal.onClose();
+		assert.equal(modal.contentEl.children.length, 0);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("CreateFeishuDocModal creates a document by default", async () => {
+	const {module, cleanup} = await loadDocCreatorModule();
+	try {
+		resetDocCreatorStubs();
+		const openedFiles = [];
+		const modal = new module.CreateFeishuDocModal({
+			workspace: {
+				getLeaf: () => ({
+					openFile: async (file) => openedFiles.push(file),
+				}),
+			},
+		}, {
+			t: (key, vars = {}) => `${key}${vars.title ? `:${vars.title}` : ""}`,
+			settings: {
+				larkCliPath: "lark-cli",
+				feishuTenantDomain: "my.feishu.cn",
+				defaultNoteFolder: "Lark",
+				noteTemplate: "",
+			},
+		});
+
+		modal.onOpen();
+		const titleInput = flattenElements(modal.contentEl)
+			.find((element) => element.tag === "input" && element.type === "text");
+		titleInput.value = "Roadmap Doc";
+
+		await modal.create();
+
+		assert.deepEqual(globalThis.__obsidianFeishuDocCreatorCreateDocCalls[0], [
+			"lark-cli",
+			"Roadmap Doc",
+			"my.feishu.cn",
+		]);
+		assert.equal(globalThis.__obsidianFeishuDocCreatorCreateBaseCalls.length, 0);
+		assert.equal(globalThis.__obsidianFeishuDocCreatorCreateNoteCalls[0].docId, "wikabc");
+		assert.equal(globalThis.__obsidianFeishuDocCreatorCreateNoteCalls[0].url, "https://my.feishu.cn/wiki/wikabc");
+		assert.equal(openedFiles[0].path, "Created Doc.lark.md");
+	} finally {
+		await cleanup();
+	}
+});
+
+test("CreateFeishuDocModal creates a Base when Base is selected", async () => {
+	const {module, cleanup} = await loadDocCreatorModule();
+	try {
+		resetDocCreatorStubs();
+		const openedFiles = [];
+		const modal = new module.CreateFeishuDocModal({
+			workspace: {
+				getLeaf: () => ({
+					openFile: async (file) => openedFiles.push(file),
+				}),
+			},
+		}, {
+			t: (key, vars = {}) => `${key}${vars.title ? `:${vars.title}` : ""}`,
+			settings: {
+				larkCliPath: "lark-cli",
+				feishuTenantDomain: "my.feishu.cn",
+				defaultNoteFolder: "Lark",
+				noteTemplate: "",
+			},
+		});
+
+		modal.onOpen();
+		const elements = flattenElements(modal.contentEl);
+		const titleInput = elements.find((element) => element.tag === "input" && element.type === "text");
+		const baseRadio = elements.find((element) => element.tag === "input" && element.type === "radio" && element.value === "base");
+		titleInput.value = "Roadmap Base";
+		baseRadio.checked = true;
+		baseRadio.dispatchEvent("change");
+
+		await modal.create();
+
+		assert.deepEqual(globalThis.__obsidianFeishuDocCreatorCreateBaseCalls[0], [
+			"lark-cli",
+			"Roadmap Base",
+			"my.feishu.cn",
+		]);
+		assert.equal(globalThis.__obsidianFeishuDocCreatorCreateDocCalls.length, 0);
+		assert.equal(globalThis.__obsidianFeishuDocCreatorCreateNoteCalls[0].docId, "basabc");
+		assert.equal(globalThis.__obsidianFeishuDocCreatorCreateNoteCalls[0].url, "https://my.feishu.cn/base/basabc");
+		assert.equal(openedFiles[0].path, "Created Base.lark.md");
 	} finally {
 		await cleanup();
 	}

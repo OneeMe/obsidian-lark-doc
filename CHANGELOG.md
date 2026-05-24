@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Added support for linked Lark / Feishu Base URLs, preserving selected `table` and `view` parameters.
+- Added a Doc/Base selector to `Create Lark document`, allowing new Lark / Feishu Bases to be created and linked from the same flow.
+
+### Fixed
+
+- Reopening an already open `.lark.md` file now reveals the existing WebView without refreshing it.
+
 ## [1.0.4] - 2026-05-23
 
 ### Fixed

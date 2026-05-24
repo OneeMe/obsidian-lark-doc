@@ -49,6 +49,18 @@
 	min-height: 80px;
 }
 
+.feishu-modal-radio-group {
+	display: flex;
+	gap: 0.75rem;
+	margin-top: 0.25rem;
+}
+
+.feishu-modal-radio-option {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
 /* Index panel */
 .feishu-index-panel {
 	display: flex;

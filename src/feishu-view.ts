@@ -438,11 +438,10 @@ export async function openFeishuView(
 		existingLeaf: existingLeaf ? describeLeafState(existingLeaf) : null,
 	});
 	if (existingLeaf) {
-		debugLog("openFeishuView refreshing existing leaf", {
+		debugLog("openFeishuView revealing existing leaf without refresh", {
 			leaf: describeLeafState(existingLeaf),
 			url: entry.lark_url,
 		});
-		await existingLeaf.setViewState({type: FEISHU_VIEW_TYPE, state});
 		await existingLeaf.loadIfDeferred?.();
 		await app.workspace.revealLeaf(existingLeaf);
 		return;

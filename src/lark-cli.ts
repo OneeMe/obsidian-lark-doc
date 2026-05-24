@@ -1,6 +1,6 @@
 import {spawn} from "child_process";
 import {delimiter, dirname} from "path";
-import type {FeishuDocInfo} from "./types";
+import {isFeishuBaseUrl, type FeishuDocInfo} from "./types";
 import type {TranslationKey, TranslationVars, Translator} from "./i18n";
 import {getEffectiveLarkCliPath} from "./lark-cli-resolver";
 
@@ -137,6 +137,75 @@ export async function createFeishuDocument(
 	return {docId: nodeToken, url, title: resolvedTitle};
 }
 
+export async function createFeishuBase(
+	cliPath: string,
+	title: string,
+	tenantDomain: string
+): Promise<FeishuDocInfo> {
+	const resolvedPath = getEffectiveLarkCliPath(cliPath);
+
+	const args = [
+		"base", "+base-create",
+		"--as", "user",
+		"--name", title,
+	];
+
+	const {stdout} = await runCommand(resolvedPath, args);
+
+	const parsed = parseCliJson(stdout);
+	if (!parsed) {
+		throw new LarkCliError("Could not parse Lark CLI output. Raw stdout:\n" + stdout);
+	}
+
+	if (parsed.error) {
+		throw new LarkCliError(String((parsed.error as Record<string, string>).message || JSON.stringify(parsed.error)));
+	}
+
+	const baseToken = extractString(parsed, [
+		"data.base.base_token",
+		"data.base.token",
+		"data.base.app_token",
+		"data.base.baseToken",
+		"data.app.base_token",
+		"data.app.token",
+		"data.app.app_token",
+		"data.base_token",
+		"data.token",
+		"data.app_token",
+		"base.base_token",
+		"base.token",
+		"base.app_token",
+		"base.baseToken",
+		"base_token",
+		"token",
+		"app_token",
+	]);
+	const resolvedTitle = extractString(parsed, [
+		"data.base.name",
+		"data.base.title",
+		"data.app.name",
+		"data.name",
+		"base.name",
+		"base.title",
+		"name",
+		"title",
+	]) || title;
+	const returnedUrl = extractString(parsed, [
+		"data.base.url",
+		"data.app.url",
+		"data.url",
+		"base.url",
+		"url",
+	]);
+
+	if (!baseToken) {
+		throw new LarkCliError("Failed to extract base token from Lark CLI output: " + stdout);
+	}
+
+	const url = returnedUrl || `https://${tenantDomain}/base/${baseToken}`;
+	return {docId: baseToken, url, title: resolvedTitle};
+}
+
 /**
  * Fetch the current title of a Feishu document.
  *
@@ -145,9 +214,14 @@ export async function createFeishuDocument(
  */
 export async function fetchFeishuDocumentTitle(
 	cliPath: string,
-	docToken: string
+	docToken: string,
+	url?: string
 ): Promise<string> {
 	const resolvedPath = getEffectiveLarkCliPath(cliPath);
+
+	if (url && isFeishuBaseUrl(url)) {
+		return await fetchFeishuBaseTitle(resolvedPath, docToken);
+	}
 
 	// First, try wiki spaces get_node (for wiki node tokens)
 	const wikiArgs = [
@@ -193,6 +267,26 @@ export async function fetchFeishuDocumentTitle(
 	}
 
 	return "";
+}
+
+async function fetchFeishuBaseTitle(
+	resolvedPath: string,
+	baseToken: string
+): Promise<string> {
+	const baseArgs = [
+		"base", "+base-get",
+		"--base-token", baseToken,
+	];
+	const {stdout} = await runCommand(resolvedPath, baseArgs);
+	const parsed = parseCliJson(stdout);
+
+	if (parsed?.error) {
+		throw new LarkCliError(String((parsed.error as Record<string, string>).message || JSON.stringify(parsed.error)));
+	}
+
+	return parsed
+		? extractString(parsed, ["data.base.name", "base.name", "data.name", "name"]) ?? ""
+		: "";
 }
 
 /**

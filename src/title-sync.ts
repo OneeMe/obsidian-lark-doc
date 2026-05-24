@@ -24,7 +24,7 @@ export async function syncTitle(
 	let newTitle: string;
 
 	try {
-		newTitle = (await fetchFeishuDocumentTitle(options.cliPath, docId)).trim();
+		newTitle = (await fetchFeishuDocumentTitle(options.cliPath, docId, fm.lark_url)).trim();
 	} catch (err) {
 		console.error("[obsidian-lark-doc] title sync fetch error:", err);
 		return false;

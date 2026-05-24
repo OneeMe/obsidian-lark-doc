@@ -65,7 +65,9 @@ async function loadTitleSyncModule() {
 					build.onLoad({filter: /^lark-cli$/, namespace: "title-sync-test-stubs"}, () => ({
 						loader: "js",
 						contents: `
-							export async function fetchFeishuDocumentTitle() {
+							export async function fetchFeishuDocumentTitle(...args) {
+								globalThis.__obsidianFeishuTestTitleFetchCalls ??= [];
+								globalThis.__obsidianFeishuTestTitleFetchCalls.push(args);
 								if (globalThis.__obsidianFeishuTestTitleError) {
 									throw globalThis.__obsidianFeishuTestTitleError;
 								}
@@ -290,6 +292,54 @@ test("syncTitle updates front matter, handles md filenames, and skips no-op stat
 		assert.equal(await module.syncTitle(noFrontMatterApp, file, {cliPath: "lark-cli", syncToFilename: true}), false);
 	} finally {
 		globalThis.__obsidianFeishuTestTitle = previousTitle;
+		await cleanup();
+	}
+});
+
+test("syncTitle passes the linked URL when fetching a Feishu Base title", async () => {
+	const {module, cleanup} = await loadTitleSyncModule();
+	const previousTitle = globalThis.__obsidianFeishuTestTitle;
+	globalThis.__obsidianFeishuTestTitle = "Revenue Tracker";
+	globalThis.__obsidianFeishuTestTitleFetchCalls = [];
+
+	try {
+		const file = {
+			extension: "md",
+			path: "Lark/Old Base.lark.md",
+			parent: {path: "Lark"},
+		};
+		const content = [
+			"---",
+			"lark_doc_id: EdJrbY6hdaPwvBskGRhctq7rndg",
+			"lark_url: https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2",
+			"lark_title: Old Base",
+			"---",
+			"",
+		].join("\n");
+		const modified = [];
+		const app = {
+			vault: {
+				read: async () => content,
+				modify: async (_file, newContent) => modified.push(newContent),
+				getAbstractFileByPath: () => null,
+				rename: async () => {},
+			},
+		};
+
+		await module.syncTitle(app, file, {
+			cliPath: "lark-cli",
+			syncToFilename: false,
+		});
+
+		assert.deepEqual(globalThis.__obsidianFeishuTestTitleFetchCalls[0], [
+			"lark-cli",
+			"EdJrbY6hdaPwvBskGRhctq7rndg",
+			"https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2",
+		]);
+		assert.match(modified[0], /lark_title: "Revenue Tracker"/);
+	} finally {
+		globalThis.__obsidianFeishuTestTitle = previousTitle;
+		delete globalThis.__obsidianFeishuTestTitleFetchCalls;
 		await cleanup();
 	}
 });

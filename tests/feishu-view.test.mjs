@@ -181,7 +181,7 @@ test("FeishuDocView replaces Obsidian navigation with sync and copy actions", as
 				},
 				{
 					icon: "copy",
-					title: "Copy Lark document link",
+					title: "Copy Lark link",
 				},
 			]
 		);
@@ -311,7 +311,7 @@ test("openFeishuView includes file and source path so Obsidian can select the so
 	}
 });
 
-test("openFeishuView reveals an existing leaf for the same source file", async () => {
+test("openFeishuView reveals an existing leaf for the same source file without refreshing it", async () => {
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
 		const activeCalls = [];
@@ -354,16 +354,14 @@ test("openFeishuView reveals an existing leaf for the same source file", async (
 		});
 
 		assert.equal(activeCalls.length, 0);
-		assert.equal(existingCalls.length, 1);
-		assert.equal(existingCalls[0].type, module.FEISHU_VIEW_TYPE);
-		assert.equal(existingCalls[0].state.url, "https://www.feishu.cn/wiki/docabc");
+		assert.equal(existingCalls.length, 0);
 		assert.deepEqual(revealedLeaves, [existingLeaf]);
 	} finally {
 		await cleanup();
 	}
 });
 
-test("openFeishuView refreshes a deferred existing leaf before revealing it", async () => {
+test("openFeishuView loads a deferred existing leaf before revealing it without refreshing state", async () => {
 	const {module, cleanup} = await loadFeishuViewModule();
 	try {
 		const calls = [];
@@ -376,9 +374,7 @@ test("openFeishuView refreshes a deferred existing leaf before revealing it", as
 				},
 			}),
 			setViewState: async (state) => {
-				assert.equal(state.type, module.FEISHU_VIEW_TYPE);
-				assert.equal(state.state.url, "https://www.feishu.cn/wiki/docabc");
-				calls.push("set");
+				throw new Error(`existing leaf should not be refreshed: ${JSON.stringify(state)}`);
 			},
 			loadIfDeferred: async () => {
 				calls.push("load");
@@ -403,7 +399,7 @@ test("openFeishuView refreshes a deferred existing leaf before revealing it", as
 			lark_title: "Doc",
 		});
 
-		assert.deepEqual(calls, ["set", "load", "reveal"]);
+		assert.deepEqual(calls, ["load", "reveal"]);
 	} finally {
 		await cleanup();
 	}

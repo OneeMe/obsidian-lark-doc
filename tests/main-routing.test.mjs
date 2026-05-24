@@ -181,7 +181,7 @@ async function loadMainRoutingModule() {
 	};
 }
 
-test("lark markdown routing reveals the existing Feishu leaf instead of opening a duplicate", async () => {
+test("lark markdown routing reveals the existing Feishu leaf without refreshing it", async () => {
 	const {module, cleanup} = await loadMainRoutingModule();
 	try {
 		const Leaf = globalThis.__obsidianLarkRoutingWorkspaceLeaf;
@@ -236,12 +236,68 @@ test("lark markdown routing reveals the existing Feishu leaf instead of opening 
 		assert.equal(existingLeaf.loaded, true);
 		assert.equal(targetLeaf.detached, true);
 		assert.deepEqual(triggeredEvents, [{name: "file-open", file: sourceFile}]);
-		assert.equal(globalThis.__obsidianLarkRoutingOriginalCalls.length, 1);
-		assert.equal(globalThis.__obsidianLarkRoutingOriginalCalls[0].leaf, existingLeaf);
-		assert.equal(
-			globalThis.__obsidianLarkRoutingOriginalCalls[0].viewState.state.url,
-			"https://www.feishu.cn/wiki/docabc"
-		);
+		assert.equal(globalThis.__obsidianLarkRoutingOriginalCalls.length, 0);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("lark markdown routing keeps the current Feishu leaf when reopening the same source", async () => {
+	const {module, cleanup} = await loadMainRoutingModule();
+	try {
+		const Leaf = globalThis.__obsidianLarkRoutingWorkspaceLeaf;
+		const TFile = globalThis.__obsidianLarkRoutingTFile;
+		const sourceFile = new TFile();
+		sourceFile.path = "Feishu/Doc.lark.md";
+		const currentLeaf = new Leaf({
+			type: "feishu-doc-view",
+			state: {
+				file: "Feishu/Doc.lark.md",
+				sourcePath: "Feishu/Doc.lark.md",
+				url: "https://www.feishu.cn/wiki/docabc",
+			},
+		});
+		const revealedLeaves = [];
+		const triggeredEvents = [];
+		const plugin = new module.default();
+		plugin.app = {
+			vault: {
+				getAbstractFileByPath: (path) => path === sourceFile.path ? sourceFile : null,
+			},
+			workspace: {
+				getLeavesOfType: (type) => type === "feishu-doc-view" ? [currentLeaf] : [],
+				revealLeaf: async (leaf) => {
+					revealedLeaves.push(leaf);
+				},
+				trigger: (name, file) => {
+					triggeredEvents.push({name, file});
+				},
+			},
+		};
+		plugin.indexer = {
+			getEntryByPath: async (path) => ({
+				path,
+				lark_url: "https://www.feishu.cn/wiki/docabc",
+				lark_title: "Doc",
+			}),
+		};
+		plugin.settings = {
+			frameZoom: 1,
+			frameCustomCss: "",
+			hideFeishuHeader: true,
+		};
+
+		plugin.registerLarkMarkdownRouting();
+		await currentLeaf.setViewState({
+			type: "markdown",
+			state: {file: "Feishu/Doc.lark.md"},
+		});
+
+		assert.deepEqual(revealedLeaves, [currentLeaf]);
+		assert.equal(currentLeaf.loaded, true);
+		assert.equal(currentLeaf.detached, false);
+		assert.deepEqual(triggeredEvents, [{name: "file-open", file: sourceFile}]);
+		assert.equal(globalThis.__obsidianLarkRoutingOriginalCalls.length, 0);
 	} finally {
 		await cleanup();
 	}

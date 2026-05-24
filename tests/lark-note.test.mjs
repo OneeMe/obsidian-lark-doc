@@ -143,3 +143,35 @@ test("createLarkMarkdownNote reads templates, reports missing templates, and san
 		await cleanup();
 	}
 });
+
+test("createLarkMarkdownNote writes Base-specific helper text for Feishu Base links", async () => {
+	const {module, cleanup} = await loadLarkNoteModule();
+	try {
+		const creates = [];
+		const app = {
+			vault: {
+				getAbstractFileByPath: (path) => path === "Lark" ? {path: "Lark"} : null,
+				createFolder: async () => {
+					throw new Error("folder already exists");
+				},
+				create: async (path, content) => {
+					creates.push({path, content});
+					return {path, extension: "md"};
+				},
+			},
+		};
+
+		await module.createLarkMarkdownNote(app, {
+			folderPath: "Lark",
+			title: "Revenue Tracker",
+			docId: "baseabc",
+			url: "https://my.feishu.cn/base/baseabc?table=tbl&view=vew",
+		});
+
+		assert.match(creates[0].content, /lark_url: https:\/\/my\.feishu\.cn\/base\/baseabc\?table=tbl&view=vew/);
+		assert.match(creates[0].content, /lark-cli base \+base-get --base-token baseabc/);
+		assert.doesNotMatch(creates[0].content, /wiki spaces get_node/);
+	} finally {
+		await cleanup();
+	}
+});

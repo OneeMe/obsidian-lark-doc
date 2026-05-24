@@ -2,6 +2,7 @@ import {normalizePath, TFile} from "obsidian";
 import type {App} from "obsidian";
 import {LARK_MARKDOWN_SUFFIX} from "./lark-file";
 import {translate, type Translator} from "./i18n";
+import {isFeishuBaseUrl} from "./types";
 
 export interface CreateLarkMarkdownNoteOptions {
 	folderPath: string;
@@ -42,7 +43,7 @@ export async function createLarkMarkdownNote(
 		">",
 		`> **${t("shadow.nodeInfo")}:**`,
 		"> ```bash",
-		`> lark-cli wiki spaces get_node --params '{"token":"${options.docId}"}' --format json`,
+		`> ${createInspectCommand(options)}`,
 		"> ```",
 		">",
 		`> ${t("shadow.footer")}`,
@@ -56,6 +57,13 @@ export async function createLarkMarkdownNote(
 	const finalPath = resolveCollision(app, filePath);
 
 	return await app.vault.create(finalPath, content);
+}
+
+function createInspectCommand(options: CreateLarkMarkdownNoteOptions): string {
+	if (isFeishuBaseUrl(options.url)) {
+		return `lark-cli base +base-get --base-token ${options.docId}`;
+	}
+	return `lark-cli wiki spaces get_node --params '{"token":"${options.docId}"}' --format json`;
 }
 
 async function readTemplateBody(

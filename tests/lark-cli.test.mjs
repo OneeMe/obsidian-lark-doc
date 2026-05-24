@@ -133,6 +133,84 @@ test("createFeishuDocument parses successful CLI responses and fallbacks", async
 	}
 });
 
+test("createFeishuBase parses successful CLI responses and fallbacks", async () => {
+	const {module, cleanup} = await loadLarkCliModule();
+	try {
+		resetLarkCliStubs();
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({
+				data: {
+					base: {
+						base_token: "basabc",
+						name: "Created Base",
+						url: "https://tenant.feishu.cn/base/basabc",
+					},
+				},
+			}),
+		});
+		assert.deepEqual(
+			await module.createFeishuBase("lark-cli", "Input Base", "tenant.feishu.cn"),
+			{
+				docId: "basabc",
+				url: "https://tenant.feishu.cn/base/basabc",
+				title: "Created Base",
+			}
+		);
+		assert.deepEqual(globalThis.__larkCliSpawnCalls[0].args, [
+			"base", "+base-create",
+			"--as", "user",
+			"--name", "Input Base",
+		]);
+		assert.equal(globalThis.__larkCliSpawnCalls[0].cliPath, "/resolved/lark-cli");
+
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({base: {token: "basfallback"}}),
+		});
+		assert.deepEqual(
+			await module.createFeishuBase("lark-cli", "Fallback Base", "tenant.feishu.cn"),
+			{
+				docId: "basfallback",
+				url: "https://tenant.feishu.cn/base/basfallback",
+				title: "Fallback Base",
+			}
+		);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("createFeishuBase reports parse, API, and token errors", async () => {
+	const {module, cleanup} = await loadLarkCliModule();
+	try {
+		resetLarkCliStubs();
+		globalThis.__larkCliSpawnQueue.push({stdout: "not json"});
+		await assert.rejects(
+			() => module.createFeishuBase("lark-cli", "Title", "tenant.feishu.cn"),
+			/Could not parse Lark CLI output/
+		);
+
+		globalThis.__larkCliSpawnQueue.push({stdout: JSON.stringify({error: {message: "base denied"}})});
+		await assert.rejects(
+			() => module.createFeishuBase("lark-cli", "Title", "tenant.feishu.cn"),
+			/base denied/
+		);
+
+		globalThis.__larkCliSpawnQueue.push({stdout: JSON.stringify({error: {code: 403}})});
+		await assert.rejects(
+			() => module.createFeishuBase("lark-cli", "Title", "tenant.feishu.cn"),
+			/"code":403/
+		);
+
+		globalThis.__larkCliSpawnQueue.push({stdout: JSON.stringify({base: {name: "No Token"}})});
+		await assert.rejects(
+			() => module.createFeishuBase("lark-cli", "Title", "tenant.feishu.cn"),
+			/Failed to extract base token/
+		);
+	} finally {
+		await cleanup();
+	}
+});
+
 test("createFeishuDocument prepends the resolved CLI directory to PATH", async () => {
 	const {module, cleanup} = await loadLarkCliModule();
 	const previousPath = process.env.PATH;
@@ -285,6 +363,60 @@ test("fetchFeishuDocumentTitle uses wiki lookup, docs JSON, XML, and empty fallb
 		globalThis.__larkCliSpawnQueue.push({stdout: JSON.stringify({title: ""})});
 		globalThis.__larkCliSpawnQueue.push({stdout: "plain text"});
 		assert.equal(await module.fetchFeishuDocumentTitle("lark-cli", "empty"), "");
+	} finally {
+		await cleanup();
+	}
+});
+
+test("fetchFeishuDocumentTitle uses Base metadata for Base URLs", async () => {
+	const {module, cleanup} = await loadLarkCliModule();
+	try {
+		resetLarkCliStubs();
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({base: {name: "Revenue Tracker"}}),
+		});
+
+		const title = await module.fetchFeishuDocumentTitle(
+			"lark-cli",
+			"EdJrbY6hdaPwvBskGRhctq7rndg",
+			"https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2"
+		);
+
+		assert.equal(title, "Revenue Tracker");
+		assert.deepEqual(globalThis.__larkCliSpawnCalls[0].args, [
+			"base", "+base-get",
+			"--base-token", "EdJrbY6hdaPwvBskGRhctq7rndg",
+		]);
+
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({base: {}}),
+		});
+		assert.equal(
+			await module.fetchFeishuDocumentTitle("lark-cli", "base-empty", "https://my.feishu.cn/base/base-empty"),
+			""
+		);
+
+		globalThis.__larkCliSpawnQueue.push({stdout: "plain text"});
+		assert.equal(
+			await module.fetchFeishuDocumentTitle("lark-cli", "base-plain", "https://my.feishu.cn/base/base-plain"),
+			""
+		);
+
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({error: {message: "base denied"}}),
+		});
+		await assert.rejects(
+			() => module.fetchFeishuDocumentTitle("lark-cli", "base-denied", "https://my.feishu.cn/base/base-denied"),
+			/base denied/
+		);
+
+		globalThis.__larkCliSpawnQueue.push({
+			stdout: JSON.stringify({error: {code: 403}}),
+		});
+		await assert.rejects(
+			() => module.fetchFeishuDocumentTitle("lark-cli", "base-forbidden", "https://my.feishu.cn/base/base-forbidden"),
+			/"code":403/
+		);
 	} finally {
 		await cleanup();
 	}

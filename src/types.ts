@@ -37,11 +37,11 @@ export interface IndexEntry {
 
 /**
  * Regular expressions for Feishu URL parsing.
- * Matches any subdomain of feishu.cn / larksuite.com with docs/docx/wiki paths.
+ * Matches any subdomain of feishu.cn / larksuite.com with docs/docx/wiki/base paths.
  */
 const FEISHU_URL_PATTERNS = [
-	/[\w-]+\.feishu\.cn\/(?:docs|docx|wiki)\/([a-zA-Z0-9]+)/,
-	/[\w-]+\.larksuite\.com\/(?:docs|docx|wiki)\/([a-zA-Z0-9]+)/,
+	/[\w-]+\.feishu\.cn\/(?:docs|docx|wiki|base)\/([a-zA-Z0-9]+)/,
+	/[\w-]+\.larksuite\.com\/(?:docs|docx|wiki|base)\/([a-zA-Z0-9]+)/,
 ];
 
 /**
@@ -65,10 +65,32 @@ export function normalizeFeishuUrl(url: string): string {
 	const trimmed = url.trim();
 	try {
 		const u = new URL(trimmed);
-		// Strip query params and hash, keep origin + pathname
-		return `${u.origin}${u.pathname}`;
+		if (!isFeishuBaseUrl(trimmed)) {
+			// Strip query params and hash, keep origin + pathname
+			return `${u.origin}${u.pathname}`;
+		}
+
+		const params = new URLSearchParams();
+		for (const key of ["table", "view"]) {
+			const value = u.searchParams.get(key);
+			if (value) params.set(key, value);
+		}
+		const query = params.toString();
+		return query ? `${u.origin}${u.pathname}?${query}` : `${u.origin}${u.pathname}`;
 	} catch {
 		return trimmed;
+	}
+}
+
+export function isFeishuBaseUrl(url: string): boolean {
+	try {
+		const u = new URL(url.trim());
+		return (
+			/^[\w-]+\.feishu\.cn$/.test(u.hostname)
+			|| /^[\w-]+\.larksuite\.com$/.test(u.hostname)
+		) && /^\/base\/[a-zA-Z0-9]+/.test(u.pathname);
+	} catch {
+		return /[\w-]+\.(?:feishu\.cn|larksuite\.com)\/base\/[a-zA-Z0-9]+/.test(url);
 	}
 }
 

@@ -54,6 +54,26 @@ test("parseFeishuUrl extracts and normalizes supported Feishu and Lark URLs", as
 				url: "https://one.larksuite.com/wiki/wikabc",
 			}
 		);
+		assert.equal(
+			module.extractDocIdFromUrl("https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2"),
+			"EdJrbY6hdaPwvBskGRhctq7rndg"
+		);
+		assert.equal(
+			module.normalizeFeishuUrl("https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2&from=share#top"),
+			"https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2"
+		);
+		assert.equal(
+			module.normalizeFeishuUrl("https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?from=share#top"),
+			"https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg"
+		);
+		assert.equal(module.isFeishuBaseUrl("my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg"), true);
+		assert.deepEqual(
+			module.parseFeishuUrl("https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2"),
+			{
+				docId: "EdJrbY6hdaPwvBskGRhctq7rndg",
+				url: "https://my.feishu.cn/base/EdJrbY6hdaPwvBskGRhctq7rndg?table=tblsYP1w34jd4IjF&view=vew9iPxyp2",
+			}
+		);
 		assert.equal(module.parseFeishuUrl("https://example.com/nope"), undefined);
 	} finally {
 		await cleanup();

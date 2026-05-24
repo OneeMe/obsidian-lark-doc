@@ -121,6 +121,9 @@ async function loadMainModule() {
 						contents: `
 							export function parseFeishuUrl(url) {
 								if (!url) return null;
+								if (url.includes("/base/")) {
+									return {docId: "baseabc", url: "https://my.feishu.cn/base/baseabc?table=tbl&view=vew"};
+								}
 								return {docId: "docabc", url};
 							}
 						`,
@@ -168,7 +171,8 @@ async function loadMainModule() {
 									if (err?.translationKey) return translate(err.translationKey, err.translationVars);
 									return err instanceof Error ? err.message : String(err);
 								}
-								export async function fetchFeishuDocumentTitle() {
+								export async function fetchFeishuDocumentTitle(...args) {
+									globalThis.__obsidianFeishuAddLinkedFetchCalls.push(args);
 									if (globalThis.__obsidianFeishuAddLinkedFetchError) {
 										throw globalThis.__obsidianFeishuAddLinkedFetchError;
 									}
@@ -190,6 +194,7 @@ async function loadMainModule() {
 
 function resetAddLinkedStubs() {
 	globalThis.__obsidianFeishuAddLinkedCreateCalls = [];
+	globalThis.__obsidianFeishuAddLinkedFetchCalls = [];
 	globalThis.__obsidianFeishuAddLinkedNotices = [];
 	globalThis.__obsidianFeishuAddLinkedFetchError = undefined;
 }
@@ -248,6 +253,48 @@ test("AddLinkedFeishuDocumentModal creates the local file with the Feishu docume
 
 		assert.equal(globalThis.__obsidianFeishuAddLinkedCreateCalls.length, 1);
 		assert.equal(globalThis.__obsidianFeishuAddLinkedCreateCalls[0].title, "Real Feishu Title");
+		assert.equal(openedFiles[0].path, "Real Feishu Title.lark.md");
+	} finally {
+		await cleanup();
+	}
+});
+
+test("AddLinkedFeishuDocumentModal creates a linked file from a Feishu Base URL", async () => {
+	const {module, cleanup} = await loadMainModule();
+	try {
+		resetAddLinkedStubs();
+		const openedFiles = [];
+		const modal = new module.AddLinkedFeishuDocumentModal({
+			workspace: {
+				getLeaf: () => ({
+					openFile: async (file) => openedFiles.push(file),
+				}),
+			},
+		}, {
+			t: (key, vars = {}) => `${key}${vars.title ? `:${vars.title}` : ""}`,
+			settings: {
+				larkCliPath: "lark-cli",
+				defaultNoteFolder: "Lark",
+				noteTemplate: "",
+			},
+		});
+
+		modal.onOpen();
+		const input = flattenElements(modal.contentEl).find((element) => element.tag === "input");
+		input.value = "https://my.feishu.cn/base/baseabc?table=tbl&view=vew";
+
+		await modal.add();
+
+		assert.deepEqual(globalThis.__obsidianFeishuAddLinkedFetchCalls[0], [
+			"lark-cli",
+			"baseabc",
+			"https://my.feishu.cn/base/baseabc?table=tbl&view=vew",
+		]);
+		assert.equal(globalThis.__obsidianFeishuAddLinkedCreateCalls[0].docId, "baseabc");
+		assert.equal(
+			globalThis.__obsidianFeishuAddLinkedCreateCalls[0].url,
+			"https://my.feishu.cn/base/baseabc?table=tbl&view=vew"
+		);
 		assert.equal(openedFiles[0].path, "Real Feishu Title.lark.md");
 	} finally {
 		await cleanup();
