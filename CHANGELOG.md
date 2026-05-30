@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-05-30
+
+### Changed
+
+- Renamed the user-visible plugin brand from `Lark Doc` to `Lark Wiki` while keeping the plugin ID as `lark-doc`.
+- Updated README, release documentation, UI messages, and current project requirements to use the `Lark Wiki` display name.
+
 ## [1.0.5] - 2026-05-24
 
 ### Added

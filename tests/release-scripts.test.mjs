@@ -27,10 +27,10 @@ async function withReleaseFixture(callback) {
 		}, 2);
 		await writeJson(join(dir, "manifest.json"), {
 			id: "lark-doc",
-			name: "Lark Doc",
+			name: "Lark Wiki",
 			version: "1.2.3",
 			minAppVersion: "1.7.2",
-			description: "Bridge your vault with Lark and Feishu documents.",
+			description: "Bridge your vault with Lark Wiki / Feishu cloud documents and Bases.",
 			author: "OneeMe",
 			isDesktopOnly: true,
 		});
@@ -82,7 +82,7 @@ test("validate-release rejects marketplace identifiers that contain Obsidian", a
 		const manifestPath = join(dir, "manifest.json");
 		const manifest = await readJson(manifestPath);
 		manifest.id = "obsidian-lark-doc";
-		manifest.name = "Obsidian Lark Doc";
+		manifest.name = "Obsidian Lark Wiki";
 		await writeJson(manifestPath, manifest);
 
 		const result = runScript("scripts/validate-release.mjs", [], dir);

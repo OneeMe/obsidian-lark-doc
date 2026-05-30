@@ -10,7 +10,7 @@
 
 ## 问题描述
 
-插件已经更名为 Lark Doc，但新建的 `.lark.md` 文件和自动生成的 Base 仍使用 `feishu_doc_id`、`feishu_url`、`feishu_title` 字段。用户在 Obsidian Base 中看到 `feishu_title` 和 `feishu_url` 列，与当前插件命名不一致。
+插件已经更名为 Lark Wiki，但新建的 `.lark.md` 文件和自动生成的 Base 仍使用 `feishu_doc_id`、`feishu_url`、`feishu_title` 字段。用户在 Obsidian Base 中看到 `feishu_title` 和 `feishu_url` 列，与当前插件命名不一致。
 
 ## 复现路径
 

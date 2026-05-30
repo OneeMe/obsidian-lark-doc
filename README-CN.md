@@ -1,8 +1,8 @@
-# Lark Doc
+# Lark Wiki
 
-![Lark Doc 题头图](assets/obsidian-lark-doc-header.png)
+![Lark Wiki 题头图](assets/obsidian-lark-doc-header.png)
 
-Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档、多维表格。它会在 vault 中保留轻量的 `.lark.md` 文件，在 Obsidian WebView 中打开关联的远端资源，并可让本地文件名与远端标题保持同步。
+Lark Wiki 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档、多维表格。它会在 vault 中保留轻量的 `.lark.md` 文件，在 Obsidian WebView 中打开关联的远端资源，并可让本地文件名与远端标题保持同步。
 
 [English](README.md)
 
@@ -10,7 +10,7 @@ Lark Doc 用于连接 Obsidian 本地笔记和 Lark / 飞书云文档、多维�
 
 打开本地 `.lark.md` 笔记，即可在 Obsidian 中直接查看关联的 Lark / 飞书文档。
 
-![Lark Doc WebView 预览](assets/screenshots/webview-preview-cn.png)
+![Lark Wiki WebView 预览](assets/screenshots/webview-preview-cn.png)
 
 打开关联的 Lark / 飞书多维表格链接时，也会在同一个聚焦的 WebView 中呈现，并保留选中的数据表和视图。
 

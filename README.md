@@ -1,8 +1,8 @@
-# Lark Doc
+# Lark Wiki
 
-![Lark Doc header](assets/obsidian-lark-doc-header.png)
+![Lark Wiki header](assets/obsidian-lark-doc-header.png)
 
-Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents and Bases. It keeps a lightweight `.lark.md` file in your vault, opens the linked remote resource in an Obsidian WebView, and can keep the local filename aligned with the remote title.
+Lark Wiki connects local Obsidian notes with Lark / Feishu cloud documents and Bases. It keeps a lightweight `.lark.md` file in your vault, opens the linked remote resource in an Obsidian WebView, and can keep the local filename aligned with the remote title.
 
 [中文说明](README-CN.md)
 
@@ -10,7 +10,7 @@ Lark Doc connects local Obsidian notes with Lark / Feishu cloud documents and Ba
 
 Open a local `.lark.md` note and view the linked Lark / Feishu document directly inside Obsidian.
 
-![Lark Doc WebView preview](assets/screenshots/webview-preview.png)
+![Lark Wiki WebView preview](assets/screenshots/webview-preview.png)
 
 Open linked Lark / Feishu Base URLs in the same focused WebView, with the selected table and view preserved.
 

@@ -1,6 +1,6 @@
 ## Context
 
-Lark Doc 的核心不是把远端文档内容复制到 Obsidian，而是在 vault 中保留一个轻量 `.lark.md` 影子文件，并把打开、索引、同步和预览体验接入 Obsidian 工作流。
+Lark Wiki 的核心不是把远端文档内容复制到 Obsidian，而是在 vault 中保留一个轻量 `.lark.md` 影子文件，并把打开、索引、同步和预览体验接入 Obsidian 工作流。
 
 当前插件尚未发布，因此可以直接采用新的品牌、默认目录和 Base 文件名，不需要迁移旧的 `obsidian-feishu` 插件数据。
 

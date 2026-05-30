@@ -1,9 +1,9 @@
 {
 	"id": "lark-doc",
-	"name": "Lark Doc",
-	"version": "1.0.5",
+	"name": "Lark Wiki",
+	"version": "1.0.6",
 	"minAppVersion": "0.15.0",
-	"description": "Bridge your vault with Lark and Feishu documents.",
+	"description": "Bridge your vault with Lark Wiki / Feishu cloud documents and Bases.",
 	"author": "OneeMe",
 	"authorUrl": "https://github.com/OneeMe",
 	"isDesktopOnly": true

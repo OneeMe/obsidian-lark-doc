@@ -1,6 +1,6 @@
 # Release workflow
 
-This repository publishes the plugin as `lark-doc` / `Lark Doc`.
+This repository publishes the plugin as `lark-doc` / `Lark Wiki`.
 
 ## Prerequisites
 

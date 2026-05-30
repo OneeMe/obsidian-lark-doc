@@ -1,8 +1,8 @@
-# Change: 文档化 Lark Doc 当前需求
+# Change: 文档化 Lark Wiki 当前需求
 
 ## Why
 
-Lark Doc 已经围绕 `.lark.md` 影子文件、Lark / 飞书 WebView、标题同步、默认目录和多语言完成了一组核心能力。为了后续继续迭代，需要用 OpenSpec 把当前需求沉淀成可验证的中文 proposal，作为之后开发和验收的共同基线。
+Lark Wiki 已经围绕 `.lark.md` 影子文件、Lark / 飞书 WebView、标题同步、默认目录和多语言完成了一组核心能力。为了后续继续迭代，需要用 OpenSpec 把当前需求沉淀成可验证的中文 proposal，作为之后开发和验收的共同基线。
 
 ## What Changes
 

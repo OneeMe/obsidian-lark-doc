@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: 插件身份与运行环境
-系统 SHALL 以 Lark Doc 作为插件名称和用户可见品牌，并 SHALL 仅支持 Obsidian Desktop 环境。
+系统 SHALL 以 Lark Wiki 作为插件名称和用户可见品牌，并 SHALL 仅支持 Obsidian Desktop 环境。
 
 #### Scenario: 用户查看插件信息
 - **WHEN** 用户在 Obsidian 插件列表或 manifest 中查看插件
-- **THEN** 插件名称显示为 `Lark Doc`
+- **THEN** 插件名称显示为 `Lark Wiki`
 - **AND** 插件 ID 为 `lark-doc`
 - **AND** 插件标记为 desktop-only
 
@@ -128,7 +128,7 @@
 - **THEN** 插件设置项、命令名称、弹窗文案和通知 SHALL 使用英文
 
 ### Requirement: 不兼容未发布旧数据
-系统 SHALL 以当前 Lark Doc 行为作为基线，不 SHALL 为尚未发布的旧插件 ID、旧默认目录或旧 Base 文件名实现迁移兼容逻辑。
+系统 SHALL 以当前 Lark Wiki 行为作为基线，不 SHALL 为尚未发布的旧插件 ID、旧默认目录或旧 Base 文件名实现迁移兼容逻辑。
 
 #### Scenario: Vault 中存在旧 Base 文件名
 - **WHEN** Vault 中存在 `Feishu Documents.base`
