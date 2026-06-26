@@ -61,9 +61,9 @@ export async function createLarkMarkdownNote(
 
 function createInspectCommand(options: CreateLarkMarkdownNoteOptions): string {
 	if (isFeishuBaseUrl(options.url)) {
-		return `lark-cli base +base-get --base-token ${options.docId}`;
+		return `lark-cli base +base-get --as user --base-token ${options.docId}`;
 	}
-	return `lark-cli wiki spaces get_node --params '{"token":"${options.docId}"}' --format json`;
+	return `lark-cli wiki spaces get_node --as user --params '{"token":"${options.docId}"}' --format json`;
 }
 
 async function readTemplateBody(

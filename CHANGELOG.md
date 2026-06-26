@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-06-26
+
+### Fixed
+
+- Read linked Lark / Feishu document and Base titles with user identity so accessible documents do not fail through bot-only permissions.
+
 ## [1.0.6] - 2026-05-30
 
 ### Changed

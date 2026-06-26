@@ -351,10 +351,22 @@ test("fetchFeishuDocumentTitle uses wiki lookup, docs JSON, XML, and empty fallb
 			stdout: JSON.stringify({data: {node: {title: "Wiki Title"}}}),
 		});
 		assert.equal(await module.fetchFeishuDocumentTitle("lark-cli", "wikabc"), "Wiki Title");
+		assert.deepEqual(globalThis.__larkCliSpawnCalls[0].args, [
+			"wiki", "spaces", "get_node",
+			"--as", "user",
+			"--params", JSON.stringify({token: "wikabc"}),
+			"--format", "json",
+		]);
 
 		globalThis.__larkCliSpawnQueue.push({code: 1, stderr: "wiki failed"});
 		globalThis.__larkCliSpawnQueue.push({stdout: "noise\n{\"document\":{\"title\":\"Doc JSON Title\"}}\n"});
 		assert.equal(await module.fetchFeishuDocumentTitle("lark-cli", "docabc"), "Doc JSON Title");
+		assert.deepEqual(globalThis.__larkCliSpawnCalls[2].args, [
+			"docs", "+fetch",
+			"--as", "user",
+			"--api-version", "v2",
+			"--doc", "docabc",
+		]);
 
 		globalThis.__larkCliSpawnQueue.push({stdout: JSON.stringify({error: {message: "not wiki"}})});
 		globalThis.__larkCliSpawnQueue.push({stdout: "<doc><title>XML Title</title></doc>"});
@@ -385,6 +397,7 @@ test("fetchFeishuDocumentTitle uses Base metadata for Base URLs", async () => {
 		assert.equal(title, "Revenue Tracker");
 		assert.deepEqual(globalThis.__larkCliSpawnCalls[0].args, [
 			"base", "+base-get",
+			"--as", "user",
 			"--base-token", "EdJrbY6hdaPwvBskGRhctq7rndg",
 		]);
 

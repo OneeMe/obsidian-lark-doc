@@ -226,6 +226,7 @@ export async function fetchFeishuDocumentTitle(
 	// First, try wiki spaces get_node (for wiki node tokens)
 	const wikiArgs = [
 		"wiki", "spaces", "get_node",
+		"--as", "user",
 		"--params", JSON.stringify({token: docToken}),
 		"--format", "json",
 	];
@@ -244,6 +245,7 @@ export async function fetchFeishuDocumentTitle(
 	// Fallback: docs +fetch (for legacy docx tokens)
 	const docArgs = [
 		"docs", "+fetch",
+		"--as", "user",
 		"--api-version", "v2",
 		"--doc", docToken,
 	];
@@ -275,6 +277,7 @@ async function fetchFeishuBaseTitle(
 ): Promise<string> {
 	const baseArgs = [
 		"base", "+base-get",
+		"--as", "user",
 		"--base-token", baseToken,
 	];
 	const {stdout} = await runCommand(resolvedPath, baseArgs);

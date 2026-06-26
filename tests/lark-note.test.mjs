@@ -169,7 +169,7 @@ test("createLarkMarkdownNote writes Base-specific helper text for Feishu Base li
 		});
 
 		assert.match(creates[0].content, /lark_url: https:\/\/my\.feishu\.cn\/base\/baseabc\?table=tbl&view=vew/);
-		assert.match(creates[0].content, /lark-cli base \+base-get --base-token baseabc/);
+		assert.match(creates[0].content, /lark-cli base \+base-get --as user --base-token baseabc/);
 		assert.doesNotMatch(creates[0].content, /wiki spaces get_node/);
 	} finally {
 		await cleanup();
