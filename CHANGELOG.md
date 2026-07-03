@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-07-03
+
+### Fixed
+
+- Raised the declared minimum app version to match the Obsidian APIs used by the plugin.
+
 ## [1.0.7] - 2026-06-26
 
 ### Fixed
