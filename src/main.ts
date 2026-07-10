@@ -28,6 +28,7 @@ import {readFeishuFrontMatter} from "./feishu-frontmatter";
 import {getLarkMarkdownPathFromViewState, isLarkMarkdownFile} from "./lark-file";
 import {createLarkMarkdownNote} from "./lark-note";
 import {translate, type TranslationKey, type TranslationVars} from "./i18n";
+import {cleanShortcutAllowlist} from "./shortcut-routing";
 
 function debugLog(message: string, ...data: unknown[]): void {
 	console.debug("[obsidian-lark-doc][debug]", message, ...data);
@@ -71,6 +72,7 @@ export default class ObsidianFeishuPlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new FeishuDocView(leaf, {
 				syncSourceFile: (sourcePath) => this.syncSourceFile(sourcePath),
 				translate: (key, vars) => this.t(key, vars),
+				getShortcutAllowlist: () => this.settings.shortcutAllowlist,
 			})
 		);
 		this.registerLarkMarkdownRouting();
@@ -181,6 +183,10 @@ export default class ObsidianFeishuPlugin extends Plugin {
 	async loadSettings() {
 		const savedSettings = await this.loadData() as Partial<ObsidianFeishuSettings> | null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings ?? {});
+		this.settings.shortcutAllowlist = cleanShortcutAllowlist(
+			savedSettings?.shortcutAllowlist,
+			DEFAULT_SETTINGS.shortcutAllowlist
+		);
 	}
 
 	async saveSettings() {

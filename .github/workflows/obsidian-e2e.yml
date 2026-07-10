@@ -1,0 +1,31 @@
+name: Obsidian E2E
+
+on:
+    workflow_dispatch:
+    schedule:
+        - cron: "17 8 * * 1"
+    workflow_call:
+
+jobs:
+    shortcut-forwarding:
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22.x
+                  cache: "npm"
+
+            - run: npm ci
+            - run: npm run build
+
+            - name: Install latest stable Obsidian
+              id: obsidian
+              run: node e2e/install-obsidian-macos.mjs
+
+            - name: Run shortcut forwarding E2E
+              run: npm run test:e2e
+              env:
+                  OBSIDIAN_APP_PATH: ${{ steps.obsidian.outputs.app-path }}
+                  OBSIDIAN_EXPECTED_VERSION: ${{ steps.obsidian.outputs.version }}

@@ -55,6 +55,14 @@ test("translate resolves configured language and interpolates values", async () 
 				module.translate("en", "error.larkCliNotFound", {cliPath: "lark-cli"}),
 				"Lark CLI was not found. Current value: lark-cli. Obsidian may not inherit your terminal PATH. Set an absolute path to Lark CLI in plugin settings."
 			);
+			assert.equal(
+				module.translate("en", "settings.shortcutAllowlist.deleteShortcut", {shortcut: "Mod+W"}),
+				"Delete Mod+W"
+			);
+			assert.equal(
+				module.translate("zh-CN", "settings.shortcutAllowlist.invalid"),
+				"未保存快捷键。请使用 Mod、Ctrl、Alt 或 F1-F24。"
+			);
 		} finally {
 			await cleanup();
 		}

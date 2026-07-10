@@ -59,8 +59,40 @@ async function loadFeishuViewModule() {
 								}
 							}
 
-							export class FileView {
+							export class Component {
+								constructor() {
+									this.cleanups = [];
+									this.children = [];
+								}
+								addChild(component) {
+									this.children.push(component);
+									return component;
+								}
+								removeChild(component) {
+									this.children = this.children.filter((child) => child !== component);
+									component.unload?.();
+									return component;
+								}
+								register(callback) {
+									this.cleanups.push(callback);
+								}
+								registerDomEvent(el, type, callback, options) {
+									el.addEventListener?.(type, callback, options);
+									this.register(() => el.removeEventListener?.(type, callback, options));
+								}
+								unload() {
+									for (const cleanup of this.cleanups.splice(0)) {
+										cleanup();
+									}
+									for (const child of this.children.splice(0)) {
+										child.unload?.();
+									}
+								}
+							}
+
+							export class FileView extends Component {
 								constructor(leaf) {
+									super();
 									this.leaf = leaf;
 									this.app = leaf.app;
 									this.file = null;
@@ -87,6 +119,7 @@ async function loadFeishuViewModule() {
 							}
 							export class TFile {}
 							globalThis.__obsidianFeishuViewTFile = TFile;
+							export const Platform = {isMacOS: true};
 
 							export function getFrontMatterInfo() {
 								return {exists: false, frontmatter: ""};

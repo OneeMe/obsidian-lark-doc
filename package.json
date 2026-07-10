@@ -12,6 +12,7 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"test": "node --test tests/*.test.mjs",
+		"test:e2e": "node e2e/shortcut-forwarding.e2e.mjs",
 		"test:coverage": "node tests/run-coverage.mjs",
 		"release:prepare": "node scripts/prepare-release.mjs",
 		"release:validate": "node scripts/validate-release.mjs",
