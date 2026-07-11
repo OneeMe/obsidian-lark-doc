@@ -176,7 +176,7 @@ test("electron shortcut bridge forwards code-only keys without requiring host fo
 		const bridge = createElectronBridge({includeFocus: false});
 		const installation = module.installWebviewShortcutForwarding(bridge.webview, {
 			electron: bridge.electron,
-			getAllowlist: () => ["Mod+Alt+Shift+K", "F2", "Mod+Enter"],
+			getAllowlist: () => ["Mod+Alt+Shift+K", "F2", "Mod+Enter", "Alt+1"],
 			platform: "other",
 		});
 
@@ -194,6 +194,11 @@ test("electron shortcut bridge forwards code-only keys without requiring host fo
 			key: "Enter",
 			control: true,
 		});
+		bridge.listeners[0]({preventDefault: () => undefined}, {
+			type: "keyDown",
+			code: "Digit1",
+			alt: true,
+		});
 
 		assert.deepEqual(bridge.sent, [
 			{
@@ -210,6 +215,11 @@ test("electron shortcut bridge forwards code-only keys without requiring host fo
 				type: "keyDown",
 				keyCode: "Enter",
 				modifiers: ["control"],
+			},
+			{
+				type: "keyDown",
+				keyCode: "1",
+				modifiers: ["alt"],
 			},
 		]);
 		assert.equal(bridge.focusCount, 0);

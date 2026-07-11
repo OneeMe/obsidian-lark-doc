@@ -135,6 +135,7 @@ function normalizeKeyCode(input: ElectronBeforeInput): string {
 	if (typeof key === "string" && key.length === 1) return key.toUpperCase();
 	if (typeof key === "string" && key.length > 0) return key;
 	if (typeof input.code === "string" && /^Key[A-Z]$/.test(input.code)) return input.code.slice(3);
+	if (typeof input.code === "string" && /^Digit\d$/.test(input.code)) return input.code.slice(5);
 	return input.code as string;
 }
 
