@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-lark-doc",
-	"version": "1.0.8",
+	"version": "1.1.0",
 	"description": "Bridge your vault with Lark Wiki / Feishu cloud documents and Bases.",
 	"main": "main.js",
 	"type": "module",
