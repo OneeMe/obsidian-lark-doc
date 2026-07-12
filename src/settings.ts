@@ -1,6 +1,13 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
+import {App, Component, Notice, Platform, PluginSettingTab, Setting} from "obsidian";
 import type ObsidianFeishuPlugin from "./main";
 import {LANGUAGE_OPTIONS, type PluginLanguage} from "./i18n";
+import {
+	addShortcutToAllowlist,
+	cleanShortcutAllowlist,
+	DEFAULT_SHORTCUT_ALLOWLIST,
+	recordShortcutFromKeyboardEvent,
+	removeShortcutFromAllowlist,
+} from "./shortcut-routing";
 
 export interface ObsidianFeishuSettings {
 	language: PluginLanguage;
@@ -15,6 +22,7 @@ export interface ObsidianFeishuSettings {
 	frameZoom: number;
 	frameCustomCss: string;
 	hideFeishuHeader: boolean;
+	shortcutAllowlist: string[];
 }
 
 export const DEFAULT_SETTINGS: ObsidianFeishuSettings = {
@@ -30,17 +38,25 @@ export const DEFAULT_SETTINGS: ObsidianFeishuSettings = {
 	frameZoom: 1.0,
 	frameCustomCss: "",
 	hideFeishuHeader: true,
+	shortcutAllowlist: [...DEFAULT_SHORTCUT_ALLOWLIST],
 };
 
 export class FeishuSettingTab extends PluginSettingTab {
 	plugin: ObsidianFeishuPlugin;
+	private recordingComponent: Component | undefined;
 
 	constructor(app: App, plugin: ObsidianFeishuPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
+	hide(): void {
+		this.cancelRecording();
+		super.hide();
+	}
+
 	display(): void {
+		this.cancelRecording();
 		const {containerEl} = this;
 		containerEl.empty();
 
@@ -184,5 +200,128 @@ export class FeishuSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					this.plugin.refreshFeishuViews();
 				}));
+
+		this.renderShortcutSettings(containerEl);
+	}
+
+	private renderShortcutSettings(containerEl: HTMLElement): void {
+		const t = this.plugin.t.bind(this.plugin);
+
+		new Setting(containerEl)
+			.setName(t("settings.shortcutForwarding"))
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("settings.shortcutAllowlist.name"))
+			.setDesc(t("settings.shortcutAllowlist.desc"))
+			.addButton(button => {
+				button
+					.setButtonText(t("settings.shortcutAllowlist.record"))
+					.setCta()
+					.onClick(() => this.startRecording(button.buttonEl));
+				button.buttonEl.setAttribute("aria-label", t("settings.shortcutAllowlist.record"));
+			});
+
+		const shortcuts = cleanShortcutAllowlist(this.plugin.settings.shortcutAllowlist, []);
+		this.plugin.settings.shortcutAllowlist = shortcuts;
+
+		if (shortcuts.length === 0) {
+			new Setting(containerEl)
+				.setName(t("settings.shortcutAllowlist.empty"))
+				.setDesc(t("settings.shortcutAllowlist.emptyDesc"));
+		} else {
+			for (const shortcut of shortcuts) {
+				new Setting(containerEl)
+					.setName(shortcut)
+					.addButton(button => {
+						button
+							.setIcon("trash")
+							.setTooltip(t("settings.shortcutAllowlist.delete"))
+							.onClick(async () => {
+								this.plugin.settings.shortcutAllowlist = removeShortcutFromAllowlist(
+									this.plugin.settings.shortcutAllowlist,
+									shortcut
+								);
+								await this.plugin.saveSettings();
+								this.display();
+							});
+						button.buttonEl.setAttribute("aria-label", t("settings.shortcutAllowlist.deleteShortcut", {shortcut}));
+					});
+			}
+		}
+
+		new Setting(containerEl)
+			.setName(t("settings.shortcutAllowlist.manage"))
+			.setDesc(t("settings.shortcutAllowlist.manageDesc"))
+			.addButton(button => {
+				button
+					.setButtonText(t("settings.shortcutAllowlist.clear"))
+					.setDisabled(shortcuts.length === 0)
+					.onClick(async () => {
+						this.plugin.settings.shortcutAllowlist = [];
+						await this.plugin.saveSettings();
+						this.display();
+					});
+			})
+			.addButton(button => {
+				button
+					.setButtonText(t("settings.shortcutAllowlist.restoreDefaults"))
+					.onClick(async () => {
+						this.plugin.settings.shortcutAllowlist = [...DEFAULT_SHORTCUT_ALLOWLIST];
+						await this.plugin.saveSettings();
+						this.display();
+					});
+			});
+	}
+
+	private startRecording(buttonEl: HTMLButtonElement): void {
+		this.cancelRecording();
+		const t = this.plugin.t.bind(this.plugin);
+		const doc = this.containerEl.ownerDocument;
+		const platform = Platform.isMacOS ? "mac" : "other";
+		const originalText = buttonEl.textContent ?? t("settings.shortcutAllowlist.record");
+
+		buttonEl.textContent = t("settings.shortcutAllowlist.recording");
+		buttonEl.addClass("is-recording");
+
+		const keydownListener = (event: KeyboardEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+
+			const result = recordShortcutFromKeyboardEvent(event, platform);
+			if (result.type === "cancelled") {
+				this.cancelRecording();
+				return;
+			}
+			if (result.type === "invalid" || !result.shortcut) {
+				new Notice(t("settings.shortcutAllowlist.invalid"));
+				return;
+			}
+
+			this.plugin.settings.shortcutAllowlist = addShortcutToAllowlist(
+				this.plugin.settings.shortcutAllowlist,
+				result.shortcut
+			);
+			void this.plugin.saveSettings().then(() => {
+				this.cancelRecording();
+				this.display();
+			});
+		};
+
+		const component = new Component();
+		component.registerDomEvent(doc, "keydown", keydownListener, {capture: true});
+		component.register(() => {
+			buttonEl.removeClass("is-recording");
+			buttonEl.textContent = originalText;
+			if (this.recordingComponent === component) {
+				this.recordingComponent = undefined;
+			}
+		});
+		this.recordingComponent = component;
+	}
+
+	private cancelRecording(): void {
+		this.recordingComponent?.unload();
+		this.recordingComponent = undefined;
 	}
 }

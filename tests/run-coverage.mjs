@@ -12,6 +12,8 @@ const COVERAGE_TARGETS = [
 	"lark-cli.ts",
 	"lark-file.ts",
 	"lark-note.ts",
+	"electron-shortcut-bridge.ts",
+	"shortcut-routing.ts",
 	"title-sync.ts",
 	"types.ts",
 ];

@@ -19,7 +19,11 @@ permissions:
     attestations: write
 
 jobs:
+    obsidian-e2e:
+        uses: ./.github/workflows/obsidian-e2e.yml
+
     release:
+        needs: obsidian-e2e
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4

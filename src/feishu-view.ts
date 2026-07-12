@@ -1,7 +1,8 @@
-import {App, FileView, MarkdownView, Notice, TFile, ViewStateResult, WorkspaceLeaf} from "obsidian";
+import {App, Component, FileView, MarkdownView, Notice, Platform, TFile, ViewStateResult, WorkspaceLeaf} from "obsidian";
 import type {IndexEntry} from "./types";
 import {readFeishuFrontMatter} from "./feishu-frontmatter";
 import {translate, type TranslationKey, type TranslationVars, type Translator} from "./i18n";
+import {installWebviewShortcutForwarding} from "./electron-shortcut-bridge";
 
 export const FEISHU_VIEW_TYPE = "feishu-doc-view";
 
@@ -29,6 +30,8 @@ interface WebviewLike {
 	src: string;
 	style: CSSStyleDeclaration;
 	addEventListener(type: "dom-ready", listener: () => void): void;
+	removeEventListener?(type: "dom-ready", listener: () => void): void;
+	getWebContentsId?: () => number;
 	insertCSS(css: string): Promise<string>;
 	removeInsertedCSS(key: string): Promise<void>;
 }
@@ -59,6 +62,8 @@ export class FeishuDocView extends FileView {
 	private cssKey: string | undefined;
 	private syncActionEl: HTMLElement | undefined;
 	private copyActionEl: HTMLElement | undefined;
+	private webviewComponent: Component | undefined;
+	private shortcutForwardingCleanup: (() => void) | undefined;
 	private options: FeishuDocViewOptions;
 
 	constructor(leaf: WorkspaceLeaf, options: FeishuDocViewOptions = {}) {
@@ -109,6 +114,7 @@ export class FeishuDocView extends FileView {
 	}
 
 	async onClose(): Promise<void> {
+		this.disposeWebviewListeners();
 		this.contentEl.empty();
 	}
 
@@ -321,6 +327,7 @@ export class FeishuDocView extends FileView {
 			currentSourcePath: this.currentSourcePath,
 			currentUrl: this.currentUrl,
 		});
+		this.disposeWebviewListeners();
 		this.contentEl.empty();
 		this.webviewEl = undefined;
 		const container = this.contentEl.createDiv({cls: "feishu-doc-empty"});
@@ -335,6 +342,7 @@ export class FeishuDocView extends FileView {
 			this.renderEmptyState();
 			return;
 		}
+		this.disposeWebviewListeners();
 		this.contentEl.empty();
 
 		const zoomContainer = this.contentEl.createDiv({cls: "feishu-doc-zoom-container"});
@@ -356,8 +364,9 @@ export class FeishuDocView extends FileView {
 			el.setAttribute("nodeintegration", "false");
 			el.setAttribute("contextisolation", "true");
 			el.setAttribute("allowpopups", "");
-			(el as unknown as WebviewLike).src = this.currentUrl;
 			this.webviewEl = el as unknown as WebviewLike;
+			this.registerWebviewReadyListener(this.webviewEl, options);
+			this.webviewEl.src = this.currentUrl;
 		} else {
 			el = zoomContainer.createEl("iframe", {cls: "feishu-doc-iframe"});
 			(el as HTMLIFrameElement).src = this.currentUrl;
@@ -366,11 +375,50 @@ export class FeishuDocView extends FileView {
 
 		this.applyZoom();
 
-		if (useWebview && this.webviewEl) {
-			this.webviewEl.addEventListener("dom-ready", () => {
-				void this.injectCss(options?.customCss ?? "", options?.hideHeader ?? true);
-			});
+	}
+
+	private registerWebviewReadyListener(webview: WebviewLike, options?: FrameOptions): void {
+		const onDomReady = () => {
+			void this.injectCss(options?.customCss ?? "", options?.hideHeader ?? true);
+			this.installShortcutForwarding(webview);
+		};
+		const component = new Component();
+		this.addChild(component);
+		component.registerDomEvent(
+			webview as unknown as HTMLElement,
+			"dom-ready" as keyof HTMLElementEventMap,
+			onDomReady as EventListener
+		);
+		component.register(() => {
+			if (this.webviewComponent === component) {
+				this.webviewComponent = undefined;
+			}
+		});
+		this.webviewComponent = component;
+	}
+
+	private installShortcutForwarding(webview: WebviewLike): void {
+		this.shortcutForwardingCleanup?.();
+		this.shortcutForwardingCleanup = undefined;
+
+		const installation = installWebviewShortcutForwarding(webview, {
+			getAllowlist: () => this.options.getShortcutAllowlist?.() ?? [],
+			platform: Platform.isMacOS ? "mac" : "other",
+		});
+
+		if (installation.installed) {
+			this.shortcutForwardingCleanup = installation.dispose;
 		}
+	}
+
+	private disposeWebviewListeners(): void {
+		this.shortcutForwardingCleanup?.();
+		this.shortcutForwardingCleanup = undefined;
+		if (this.webviewComponent) {
+			this.removeChild(this.webviewComponent);
+			this.webviewComponent = undefined;
+		}
+		this.cssKey = undefined;
 	}
 
 	private applyZoom(): void {
@@ -403,6 +451,7 @@ export interface FrameOptions {
 export interface FeishuDocViewOptions {
 	syncSourceFile?: (sourcePath: string) => Promise<FeishuDocViewSyncResult | null>;
 	translate?: Translator;
+	getShortcutAllowlist?: () => readonly string[];
 }
 
 export interface FeishuDocViewSyncResult {
