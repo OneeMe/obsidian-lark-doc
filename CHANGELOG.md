@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-12
+
+### Added
+
+- Added a configurable shortcut forwarding allowlist so selected shortcuts work when focus is inside a Lark / Feishu WebView. The default `Mod+W` shortcut closes the current app tab.
+- Added settings controls to record, remove, clear, and restore forwarded shortcuts.
+- Added a macOS end-to-end check that verifies shortcut forwarding in a real Obsidian session.
+
 ## [1.0.8] - 2026-07-03
 
 ### Fixed
