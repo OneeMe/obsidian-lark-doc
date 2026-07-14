@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/obsidian-lark-wiki-logo.png" alt="Lark Wiki Logo" width="180" />
+</p>
+
 # Lark Wiki
 
 ![Lark Wiki 题头图](assets/obsidian-lark-doc-header.png)
